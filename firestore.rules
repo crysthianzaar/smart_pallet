@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function isConferente() {
+      return hasRole('conferente');
+    }
+    
+    function hasAnyRole() {
+      return isAdmin() || isConferente();
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection - admin only
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Contracts collection - admin can write, authenticated users can read
+    match /contracts/{contractId} {
+      allow read: if hasAnyRole();
+      allow write: if isAdmin();
+    }
+
+    // Locations collection - admin can write, authenticated users can read
+    match /locations/{locationId} {
+      allow read: if hasAnyRole();
+      allow write: if isAdmin();
+    }
+
+    // SKUs collection - admin can write, authenticated users can read
+    match /skus/{skuId} {
+      allow read: if hasAnyRole();
+      allow write: if isAdmin();
+    }
+
+    // Pallets collection - authenticated users can read and write
+    match /pallets/{palletId} {
+      allow read: if hasAnyRole();
+      allow create: if hasAnyRole();
+      allow update: if hasAnyRole() && 
+        (resource.data.status == 'rascunho' || 
+         (resource.data.status == 'selado' && request.auth.uid == resource.data.sealedBy));
+      allow delete: if isAdmin();
+    }
+
+    // Pallet Items collection - authenticated users can read and write
+    match /palletItems/{itemId} {
+      allow read, write: if hasAnyRole();
+    }
+
+    // Manifests collection - authenticated users can read and write
+    match /manifests/{manifestId} {
+      allow read: if hasAnyRole();
+      allow create: if hasAnyRole();
+      allow update: if hasAnyRole() && 
+        (resource.data.status == 'rascunho' || 
+         (resource.data.status == 'carregado' && request.auth.uid == resource.data.loadedBy));
+      allow delete: if isAdmin();
+    }
+
+    // Manifest Pallets collection - authenticated users can read and write
+    match /manifestPallets/{manifestPalletId} {
+      allow read, write: if hasAnyRole();
+    }
+
+    // Receipts collection - authenticated users can read and write
+    match /receipts/{receiptId} {
+      allow read: if hasAnyRole();
+      allow create: if hasAnyRole();
+      allow update: if hasAnyRole() && request.auth.uid == resource.data.receivedBy;
+      allow delete: if isAdmin();
+    }
+
+    // Comparisons collection - authenticated users can read and write
+    match /comparisons/{comparisonId} {
+      allow read, write: if hasAnyRole();
+    }
+
+    // Audit Logs collection - read only for authenticated users, system writes
+    match /auditLogs/{auditId} {
+      allow read: if hasAnyRole();
+      allow write: if false; // Only server-side writes allowed
+    }
+  }
+}
