@@ -107,6 +107,7 @@ export const PalletSchema = z.object({
   status: PalletStatus.default('rascunho'),
   ai_confidence: z.number().min(0).max(100).optional(),
   requires_manual_review: z.boolean().default(false),
+  // observations: z.string().optional(), // Temporarily removed until DB is updated
   sealed_at: z.string().datetime().optional(),
   sealed_by: z.string().optional(),
   created_by: z.string(),

@@ -42,8 +42,24 @@ export abstract class BaseRepository<T, TCreate, TUpdate = Partial<TCreate>> {
     const placeholders = Object.keys(dataWithMeta).map(() => '?').join(', ');
     const values = Object.values(dataWithMeta);
 
+    console.log(`Creating ${this.tableName}:`, {
+      columns,
+      values,
+      valueTypes: values.map(v => typeof v),
+      sql: `INSERT INTO ${this.tableName} (${columns}) VALUES (${placeholders})`
+    });
+
+    // Filter out undefined values and convert to proper types
+    const cleanValues = values.map(value => {
+      if (value === undefined) return null;
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      return value;
+    });
+
+    console.log('Clean values:', cleanValues);
+
     const stmt = db.prepare(`INSERT INTO ${this.tableName} (${columns}) VALUES (${placeholders})`);
-    stmt.run(...values);
+    stmt.run(...cleanValues);
 
     return this.findById(id) as Promise<T>;
   }

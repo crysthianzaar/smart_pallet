@@ -91,6 +91,7 @@ db.exec(`
     status TEXT DEFAULT 'rascunho' CHECK (status IN ('rascunho', 'selado', 'em_transporte', 'recebido', 'cancelado')),
     ai_confidence REAL,
     requires_manual_review BOOLEAN DEFAULT FALSE,
+    observations TEXT,
     sealed_at DATETIME,
     sealed_by TEXT,
     created_by TEXT NOT NULL,

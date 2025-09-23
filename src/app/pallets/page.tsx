@@ -14,20 +14,28 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Truck
+  Truck,
+  FileText,
+  Tag,
+  Camera
 } from 'lucide-react'
 
 interface Pallet {
   id: string;
   qr_tag_id: string;
   contract_id: string;
+  contract_name?: string;
   origin_location_id: string;
+  origin_name?: string;
   destination_location_id?: string;
-  status: 'rascunho' | 'selado' | 'em_transporte' | 'recebido' | 'cancelado';
+  destination_name?: string;
+  // Status atualizado conforme requisitos
+  status: 'ativo' | 'em_manifesto' | 'em_transito' | 'recebido' | 'finalizado';
   ai_confidence?: number;
   requires_manual_review: boolean;
-  sealed_at?: string;
-  sealed_by?: string;
+  photos_count?: number;
+  items_count?: number;
+  manifest_id?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -60,33 +68,33 @@ export default function PalletsPage() {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      rascunho: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      selado: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      em_transporte: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      recebido: 'bg-green-500/20 text-green-400 border-green-500/30',
-      cancelado: 'bg-red-500/20 text-red-400 border-red-500/30'
+      ativo: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      em_manifesto: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      em_transito: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      recebido: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      finalizado: 'bg-green-500/20 text-green-400 border-green-500/30'
     };
     return colors[status as keyof typeof colors] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   };
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      rascunho: 'Rascunho',
-      selado: 'Selado',
-      em_transporte: 'Em Trânsito',
+      ativo: 'Ativo',
+      em_manifesto: 'Em Manifesto',
+      em_transito: 'Em Trânsito',
       recebido: 'Recebido',
-      cancelado: 'Cancelado'
+      finalizado: 'Finalizado'
     };
     return labels[status as keyof typeof labels] || status;
   };
 
   const getStatusIcon = (status: string) => {
     const icons = {
-      rascunho: Edit,
-      selado: Package,
-      em_transporte: Truck,
+      ativo: Package,
+      em_manifesto: FileText,
+      em_transito: Truck,
       recebido: CheckCircle,
-      cancelado: AlertTriangle
+      finalizado: Tag
     };
     const Icon = icons[status as keyof typeof icons] || Package;
     return <Icon className="h-4 w-4" />;
@@ -111,31 +119,31 @@ export default function PalletsPage() {
 
   return (
     <AppLayout 
-      title="Pallets" 
-      subtitle="Gerenciar pallets do sistema"
+      title="Paletes" 
+      subtitle="Gerenciar paletes do sistema"
       headerActions={
         <div className="flex gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar pallets..."
+              placeholder="Buscar paletes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              className="pl-10 pr-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            className="px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
           >
-            <option value="all">Todos os Status</option>
-            <option value="rascunho">Rascunho</option>
-            <option value="selado">Selado</option>
-            <option value="em_transporte">Em Trânsito</option>
+            <option value="all">Todos os status</option>
+            <option value="ativo">Ativo</option>
+            <option value="em_manifesto">Em Manifesto</option>
+            <option value="em_transito">Em Trânsito</option>
             <option value="recebido">Recebido</option>
-            <option value="cancelado">Cancelado</option>
+            <option value="finalizado">Finalizado</option>
           </select>
           <Link
             href="/pallets/new"
@@ -154,76 +162,109 @@ export default function PalletsPage() {
       )}
 
       {/* Pallets Grid */}
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPallets.map((pallet) => (
-          <div
+          <div 
             key={pallet.id}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:bg-slate-800/70 transition-all duration-300"
+            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-lg hover:border-blue-500/50 transition-all duration-300"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <Package className="h-5 w-5 text-blue-400" />
-                  <h3 className="text-lg font-bold text-white">{pallet.id}</h3>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(pallet.status)}`}>
-                    <div className="flex items-center gap-1">
-                      {getStatusIcon(pallet.status)}
-                      {getStatusLabel(pallet.status)}
-                    </div>
-                  </span>
-                  {pallet.requires_manual_review && (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                      <div className="flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        Revisão Manual
-                      </div>
-                    </span>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-400 mb-4">
-                  <div className="flex items-center gap-2">
+            <div className="p-5">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-medium text-white">{pallet.id}</h3>
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
                     <QrCode className="h-4 w-4" />
-                    <span>QR: {pallet.qr_tag_id}</span>
-                  </div>
-                  {pallet.ai_confidence && (
-                    <div className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      <span>IA: {pallet.ai_confidence}%</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{new Date(pallet.created_at).toLocaleDateString()}</span>
+                    <span>{pallet.qr_tag_id}</span>
                   </div>
                 </div>
-
-                {pallet.sealed_at && (
-                  <div className="text-xs text-slate-500">
-                    Selado em {new Date(pallet.sealed_at).toLocaleString()}
-                    {pallet.sealed_by && ` por ${pallet.sealed_by}`}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(pallet.status)} border`}>
+                  <div className="flex items-center gap-1">
+                    {getStatusIcon(pallet.status)}
+                    <span>{getStatusLabel(pallet.status)}</span>
+                  </div>
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-xs text-slate-500">Origem</p>
+                  <p className="text-sm text-slate-300">{pallet.origin_name || 'Não informado'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Contrato</p>
+                  <p className="text-sm text-slate-300">{pallet.contract_name || pallet.contract_id}</p>
+                </div>
+                {pallet.manifest_id && (
+                  <div>
+                    <p className="text-xs text-slate-500">Manifesto</p>
+                    <p className="text-sm text-slate-300">{pallet.manifest_id}</p>
+                  </div>
+                )}
+                {pallet.destination_name && (
+                  <div>
+                    <p className="text-xs text-slate-500">Destino</p>
+                    <p className="text-sm text-slate-300">{pallet.destination_name}</p>
                   </div>
                 )}
               </div>
               
-              <div className="flex gap-2">
-                <Link
-                  href={`/pallets/${pallet.id}`}
-                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-all duration-200"
-                >
-                  <Eye className="h-4 w-4" />
-                </Link>
-                {pallet.status === 'rascunho' && (
-                  <Link
-                    href={`/pallets/${pallet.id}/edit`}
-                    className="p-2 text-slate-400 hover:text-green-400 hover:bg-green-500/20 rounded-lg transition-all duration-200"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Link>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {pallet.items_count !== undefined && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 text-blue-400 px-2 py-1 text-xs rounded-full flex items-center gap-1">
+                    <Package className="h-3 w-3" />
+                    {pallet.items_count} itens
+                  </div>
                 )}
-                <button className="p-2 text-slate-400 hover:text-slate-300 hover:bg-slate-600/50 rounded-lg transition-all duration-200">
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
+                {pallet.photos_count !== undefined && (
+                  <div className="bg-purple-500/10 border border-purple-500/30 text-purple-400 px-2 py-1 text-xs rounded-full flex items-center gap-1">
+                    <Camera className="h-3 w-3" />
+                    {pallet.photos_count} fotos
+                  </div>
+                )}
+                {pallet.requires_manual_review && (
+                  <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-2 py-1 text-xs rounded-full flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Revisão
+                  </div>
+                )}
+                {pallet.ai_confidence !== undefined && (
+                  <div className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${pallet.ai_confidence > 75 ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'}`}>
+                    IA: {pallet.ai_confidence}%
+                  </div>
+                )}
+              </div>
+              
+              <div className="border-t border-slate-700/50 pt-3 mt-1 flex justify-between">
+                <span className="text-xs text-slate-500">
+                  Criado: {new Date(pallet.created_at).toLocaleDateString()}
+                </span>
+                <div className="flex gap-1">
+                  <Link href={`/pallets/${pallet.id}`}>
+                    <button className="p-1 rounded hover:bg-slate-700/50 transition-colors">
+                      <Eye className="h-4 w-4 text-slate-400 hover:text-white" />
+                    </button>
+                  </Link>
+                  
+                  {pallet.status === 'ativo' && (
+                    <Link href={`/pallets/${pallet.id}/edit`}>
+                      <button className="p-1 rounded hover:bg-slate-700/50 transition-colors">
+                        <Edit className="h-4 w-4 text-slate-400 hover:text-white" />
+                      </button>
+                    </Link>
+                  )}
+                  
+                  {pallet.status === 'ativo' && (
+                    <Link href={`/manifests/new?pallet=${pallet.id}`}>
+                      <button className="p-1 rounded hover:bg-slate-700/50 transition-colors" title="Adicionar ao manifesto">
+                        <FileText className="h-4 w-4 text-slate-400 hover:text-white" />
+                      </button>
+                    </Link>
+                  )}
+                  
+                  <button className="p-1 rounded hover:bg-slate-700/50 transition-colors">
+                    <MoreHorizontal className="h-4 w-4 text-slate-400 hover:text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

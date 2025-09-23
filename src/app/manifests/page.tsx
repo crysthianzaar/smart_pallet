@@ -110,7 +110,7 @@ export default function ManifestsPage() {
 
   return (
     <AppLayout 
-      title="Manifestos" 
+      title="Manifestos (Saídas)" 
       subtitle="Gerenciar manifestos de carga"
       headerActions={
         <div className="flex gap-3">

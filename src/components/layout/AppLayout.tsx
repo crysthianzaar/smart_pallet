@@ -27,8 +27,7 @@ interface AppLayoutProps {
 const menuItems = [
   { title: 'Dashboard', href: '/', icon: BarChart3 },
   { title: 'Pallets', href: '/pallets', icon: Package },
-  { title: 'Scanner QR', href: '/scanner', icon: QrCode },
-  { title: 'Manifestos', href: '/manifests', icon: FileText },
+  { title: 'Manifestos (Saídas)', href: '/manifests', icon: FileText },
   { title: 'Recebimentos', href: '/receipts', icon: Truck },
   { title: 'Comparações', href: '/comparisons', icon: Eye },
   { title: 'Administração', href: '/admin', icon: Settings },

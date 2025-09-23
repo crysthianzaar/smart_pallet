@@ -265,7 +265,7 @@ export default function DashboardPage() {
             </Link>
             <Link href="/manifests/new" className="flex flex-col items-center justify-center h-20 bg-slate-700/30 border border-slate-600/50 rounded-lg hover:bg-slate-700/50 hover:border-purple-500/50 transition-all duration-300 group">
               <FileText className="h-6 w-6 text-slate-400 group-hover:text-purple-400 transition-colors" />
-              <span className="text-sm text-slate-300 group-hover:text-white transition-colors mt-2">Criar Manifesto</span>
+              <span className="text-sm text-slate-300 group-hover:text-white transition-colors mt-2">Criar Manifesto (Saída)</span>
             </Link>
             <Link href="/receipts/new" className="flex flex-col items-center justify-center h-20 bg-slate-700/30 border border-slate-600/50 rounded-lg hover:bg-slate-700/50 hover:border-green-500/50 transition-all duration-300 group">
               <Truck className="h-6 w-6 text-slate-400 group-hover:text-green-400 transition-colors" />

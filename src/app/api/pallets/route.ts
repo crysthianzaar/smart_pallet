@@ -9,7 +9,10 @@ const qrTagRepository = RepositoryFactory.getQrTagRepository();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Raw request body:', body);
+    
     const validatedData = PalletCreateSchema.parse(body);
+    console.log('Validated data:', validatedData);
     
     // Check if QR tag exists and is available
     const qrTag = await qrTagRepository.findById(validatedData.qr_tag_id);
@@ -31,6 +34,9 @@ export async function POST(request: NextRequest) {
       created_by: MVP_USER_ID,
     };
     
+    console.log('Final pallet data before create:', palletData);
+    console.log('Data types:', Object.entries(palletData).map(([key, value]) => [key, typeof value, value]));
+    
     const pallet = await palletRepository.create(palletData);
     
     // Link the QR tag to the pallet
@@ -38,6 +44,7 @@ export async function POST(request: NextRequest) {
     
     return createApiResponse(pallet, 201);
   } catch (error) {
+    console.error('Detailed error:', error);
     const message = error instanceof Error ? error.message : 'Failed to create pallet';
     return createErrorResponse(message, 400);
   }
