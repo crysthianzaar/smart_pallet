@@ -56,17 +56,25 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const contractId = searchParams.get('contractId');
     const requiresManualReview = searchParams.get('requiresManualReview') === 'true';
+    const withDetails = searchParams.get('withDetails') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     
     let pallets;
     if (status) {
+      // O método findByStatus já retorna detalhes completos
       pallets = await palletRepository.findByStatus(status);
     } else if (contractId) {
+      // Aqui precisaríamos implementar um método específico
       pallets = await palletRepository.findByContract(contractId);
     } else if (requiresManualReview) {
+      // O método findRequiringManualReview já retorna detalhes completos
       pallets = await palletRepository.findRequiringManualReview();
+    } else if (withDetails) {
+      // Usar o novo método que retorna detalhes completos
+      pallets = await palletRepository.findAllWithDetails(limit, offset);
     } else {
+      // Padrão - sem detalhes adicionais
       pallets = await palletRepository.findAll(limit, offset);
     }
     

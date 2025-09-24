@@ -1,16 +1,21 @@
 import { NextRequest } from 'next/server';
-import { withAuth, createApiResponse, createErrorResponse, requireAnyRole } from '../../../../lib/auth';
-import { repositoryFactory } from '../../../../server/adapters/firebase/repository-factory';
-import { GetPalletUC } from '../../../../server/use_cases/pallet-use-cases';
+import { createApiResponse, createErrorResponse } from '../../../../lib/api-utils';
+import { RepositoryFactory } from '../../../../lib/repositories';
 
-export const GET = withAuth(async (request: NextRequest, user, { params }: { params: { id: string } }) => {
+const palletRepository = RepositoryFactory.getPalletRepository();
+
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const getPalletUC = new GetPalletUC(repositoryFactory);
-    const palletData = await getPalletUC.execute(params.id);
+    const palletData = await palletRepository.getWithDetails(params.id);
+    
+    if (!palletData) {
+      return createErrorResponse('Pallet not found', 404);
+    }
     
     return createApiResponse(palletData);
   } catch (error) {
+    console.error('Error fetching pallet details:', error);
     const message = error instanceof Error ? error.message : 'Failed to get pallet';
-    return createErrorResponse(message, 404);
+    return createErrorResponse(message, 500);
   }
-}, requireAnyRole);
+}

@@ -7,12 +7,42 @@ export class PalletRepository extends BaseRepository<Pallet, PalletCreate, Palle
     super('pallets');
   }
 
+  // Sobrescreve o método generateId para usar o formato CTX-DDMMYYYYHHMMSS
+  protected generateId(): string {
+    const now = new Date();
+    
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear().toString();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    
+    return `CTX-${day}${month}${year}${hours}${minutes}${seconds}`;
+  }
+
   async findByQrTag(qrTagId: string): Promise<Pallet | null> {
     return this.findOneBy('qr_tag_id', qrTagId);
   }
 
   async findByStatus(status: string): Promise<Pallet[]> {
-    return this.findBy('status', status);
+    const stmt = db.prepare(`
+      SELECT 
+        p.*,
+        c.name as contract_name,
+        c.company as contract_company,
+        ol.name as origin_name,
+        dl.name as destination_name,
+        qt.qr_code
+      FROM ${this.tableName} p
+      LEFT JOIN contracts c ON p.contract_id = c.id
+      LEFT JOIN locations ol ON p.origin_location_id = ol.id
+      LEFT JOIN locations dl ON p.destination_location_id = dl.id
+      LEFT JOIN qr_tags qt ON p.qr_tag_id = qt.id
+      WHERE p.status = ?
+      ORDER BY p.created_at DESC
+    `);
+    return stmt.all(status) as Pallet[];
   }
 
   async findByContract(contractId: string): Promise<Pallet[]> {
@@ -29,9 +59,20 @@ export class PalletRepository extends BaseRepository<Pallet, PalletCreate, Palle
 
   async findRequiringManualReview(): Promise<Pallet[]> {
     const stmt = db.prepare(`
-      SELECT * FROM ${this.tableName} 
-      WHERE requires_manual_review = 1 
-      ORDER BY created_at DESC
+      SELECT 
+        p.*,
+        c.name as contract_name,
+        c.company as contract_company,
+        ol.name as origin_name,
+        dl.name as destination_name,
+        qt.qr_code
+      FROM ${this.tableName} p
+      LEFT JOIN contracts c ON p.contract_id = c.id
+      LEFT JOIN locations ol ON p.origin_location_id = ol.id
+      LEFT JOIN locations dl ON p.destination_location_id = dl.id
+      LEFT JOIN qr_tags qt ON p.qr_tag_id = qt.id
+      WHERE p.requires_manual_review = 1 
+      ORDER BY p.created_at DESC
     `);
     return stmt.all() as Pallet[];
   }
@@ -67,12 +108,48 @@ export class PalletRepository extends BaseRepository<Pallet, PalletCreate, Palle
     return result.changes > 0;
   }
 
+  async findAllWithDetails(limit: number = 50, offset: number = 0): Promise<Pallet[]> {
+    const stmt = db.prepare(`
+      SELECT 
+        p.*,
+        c.name as contract_name,
+        c.company as contract_company,
+        ol.name as origin_name,
+        dl.name as destination_name,
+        qt.qr_code
+      FROM ${this.tableName} p
+      LEFT JOIN contracts c ON p.contract_id = c.id
+      LEFT JOIN locations ol ON p.origin_location_id = ol.id
+      LEFT JOIN locations dl ON p.destination_location_id = dl.id
+      LEFT JOIN qr_tags qt ON p.qr_tag_id = qt.id
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    return stmt.all(limit, offset) as Pallet[];
+  }
+
   async getWithDetails(palletId: string): Promise<{
     pallet: Pallet;
     items: PalletItem[];
     photos: PalletPhoto[];
   } | null> {
-    const pallet = await this.findById(palletId);
+    const stmt = db.prepare(`
+      SELECT 
+        p.*,
+        c.name as contract_name,
+        c.company as contract_company,
+        ol.name as origin_name,
+        dl.name as destination_name,
+        qt.qr_code
+      FROM ${this.tableName} p
+      LEFT JOIN contracts c ON p.contract_id = c.id
+      LEFT JOIN locations ol ON p.origin_location_id = ol.id
+      LEFT JOIN locations dl ON p.destination_location_id = dl.id
+      LEFT JOIN qr_tags qt ON p.qr_tag_id = qt.id
+      WHERE p.id = ?
+    `);
+    
+    const pallet = stmt.get(palletId) as Pallet | undefined;
     if (!pallet) return null;
 
     const itemsStmt = db.prepare(`

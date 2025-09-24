@@ -23,8 +23,10 @@ import {
 interface Pallet {
   id: string;
   qr_tag_id: string;
+  qr_code?: string; // Adicionado campo para o código legível do QR
   contract_id: string;
   contract_name?: string;
+  contract_company?: string; // Adicionado campo para a empresa do contrato
   origin_location_id: string;
   origin_name?: string;
   destination_location_id?: string;
@@ -55,9 +57,11 @@ export default function PalletsPage() {
   const fetchPallets = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/pallets');
+      // Buscar pallets com informações completas (incluindo QR codes e nomes de contratos)
+      const response = await fetch('/api/pallets?withDetails=true');
       if (!response.ok) throw new Error('Failed to fetch pallets');
       const data = await response.json();
+      console.log('Pallets com detalhes:', data);
       setPallets(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -102,7 +106,9 @@ export default function PalletsPage() {
 
   const filteredPallets = pallets.filter(pallet => {
     const matchesSearch = pallet.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pallet.qr_tag_id.toLowerCase().includes(searchTerm.toLowerCase());
+                         pallet.qr_tag_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (pallet.qr_code && pallet.qr_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (pallet.contract_name && pallet.contract_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || pallet.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -162,27 +168,38 @@ export default function PalletsPage() {
       )}
 
       {/* Pallets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPallets.map((pallet) => (
           <div 
             key={pallet.id}
             className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-lg hover:border-blue-500/50 transition-all duration-300"
           >
-            <div className="p-5">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-medium text-white">{pallet.id}</h3>
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <QrCode className="h-4 w-4" />
-                    <span>{pallet.qr_tag_id}</span>
-                  </div>
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white flex items-center space-x-2 mb-2">
+                {pallet.id.startsWith('CTX-') ? (
+                  <>
+                    <span className="bg-blue-500/30 text-blue-300 px-2 py-1 rounded-md font-mono text-sm">CTX</span>
+                    <span className="font-mono">{pallet.id.replace('CTX-', '')}</span>
+                  </>
+                ) : (
+                  <span className="truncate">{pallet.id}</span>
+                )}
+              </h3>
+              
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="flex items-center gap-1 mr-2">
+                  {getStatusIcon(pallet.status)}
+                  <span className="text-sm text-slate-300">{getStatusLabel(pallet.status)}</span>
                 </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(pallet.status)} border`}>
+                
+                {pallet.qr_code && (
                   <div className="flex items-center gap-1">
-                    {getStatusIcon(pallet.status)}
-                    <span>{getStatusLabel(pallet.status)}</span>
+                    <QrCode className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-mono bg-slate-700/50 px-2 py-1 rounded text-cyan-300">
+                      {pallet.qr_code}
+                    </span>
                   </div>
-                </span>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -192,7 +209,16 @@ export default function PalletsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Contrato</p>
-                  <p className="text-sm text-slate-300">{pallet.contract_name || pallet.contract_id}</p>
+                  <p className="text-sm text-slate-300">
+                    {pallet.contract_name ? (
+                      <span className="font-medium">{pallet.contract_name}</span>
+                    ) : (
+                      <span className="text-slate-500 text-xs">{pallet.contract_id.substring(0, 8)}...</span>
+                    )}
+                    {pallet.contract_company && (
+                      <span className="block text-xs text-slate-400">{pallet.contract_company}</span>
+                    )}
+                  </p>
                 </div>
                 {pallet.manifest_id && (
                   <div>
@@ -292,5 +318,5 @@ export default function PalletsPage() {
         )}
       </div>
     </AppLayout>
-  )
+  );
 }
