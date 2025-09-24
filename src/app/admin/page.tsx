@@ -140,7 +140,7 @@ export default function AdminPage() {
 
   return (
     <AppLayout 
-      title="Administração" 
+      title="Configurações" 
       subtitle="Configuração e gerenciamento do sistema"
     >
       {/* Database Actions */}

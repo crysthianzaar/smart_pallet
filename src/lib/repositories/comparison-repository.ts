@@ -7,6 +7,27 @@ export class ComparisonRepository extends BaseRepository<Comparison, ComparisonC
     super('comparisons');
   }
 
+  async findAll(limit: number = 50, offset: number = 0): Promise<Comparison[]> {
+    const stmt = db.prepare(`
+      SELECT 
+        c.*,
+        s.name as sku_name,
+        s.code as sku_code,
+        s.description as sku_description,
+        s.unit as sku_unit,
+        p.qr_tag_id,
+        qt.qr_code
+      FROM ${this.tableName} c
+      JOIN skus s ON c.sku_id = s.id
+      JOIN pallets p ON c.pallet_id = p.id
+      JOIN qr_tags qt ON p.qr_tag_id = qt.id
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    
+    return stmt.all(limit, offset) as Comparison[];
+  }
+
   async findByReceipt(receiptId: string): Promise<Comparison[]> {
     return this.findBy('receipt_id', receiptId);
   }

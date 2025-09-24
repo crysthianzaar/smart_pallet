@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
 import { withAuth, createApiResponse, createErrorResponse, requireAnyRole } from '../../../lib/auth';
-import { repositoryFactory } from '../../../server/adapters/firebase/repository-factory';
 import { GetKpisUC } from '../../../server/use_cases/dashboard-use-cases';
 
 export const GET = withAuth(async (request: NextRequest, user) => {

@@ -1,16 +1,21 @@
 import { NextRequest } from 'next/server';
 import { withAuth, createApiResponse, createErrorResponse, requireAdmin } from '../../../../lib/auth';
-import { repositoryFactory } from '../../../../server/adapters/firebase/repository-factory';
-import { CreateContractUC, ListContractsUC } from '../../../../server/use_cases/admin-use-cases';
-import { ContractCreateSchema } from '../../../../server/models';
+import { RepositoryFactory } from '../../../../lib/repositories';
+import { ContractCreateSchema } from '../../../../lib/models';
 
 export const POST = withAuth(async (request: NextRequest, user) => {
   try {
     const body = await request.json();
+    
+    // Garantir que o body tenha todos os campos necessários
+    if (!body.company) {
+      return createErrorResponse('Field "company" is required', 400);
+    }
+    
     const validatedData = ContractCreateSchema.parse(body);
     
-    const createContractUC = new CreateContractUC(repositoryFactory);
-    const contract = await createContractUC.execute(validatedData, user.uid);
+    const contractRepository = RepositoryFactory.getContractRepository();
+    const contract = await contractRepository.create(validatedData);
     
     return createApiResponse(contract, 201);
   } catch (error) {
@@ -21,13 +26,8 @@ export const POST = withAuth(async (request: NextRequest, user) => {
 
 export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get('activeOnly') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const startAfter = searchParams.get('startAfter') || undefined;
-    
-    const listContractsUC = new ListContractsUC(repositoryFactory);
-    const contracts = await listContractsUC.execute(activeOnly, limit, startAfter);
+    const contractRepository = RepositoryFactory.getContractRepository();
+    const contracts = await contractRepository.findAll();
     
     return createApiResponse(contracts);
   } catch (error) {

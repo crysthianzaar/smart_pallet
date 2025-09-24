@@ -203,7 +203,7 @@ export const ManifestPalletCreateSchema = ManifestPalletSchema.omit({
 // Receipt Models
 export const ReceiptSchema = z.object({
   id: z.string(),
-  pallet_id: z.string(),
+  pallet_id: z.string().optional(),
   manifest_id: z.string().optional(),
   location_id: z.string(),
   received_by: z.string(),
@@ -211,11 +211,15 @@ export const ReceiptSchema = z.object({
   status: ReceiptStatus.default('ok'),
   notes: z.string().optional(),
   received_at: z.string().datetime().optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
 });
 
 export const ReceiptCreateSchema = ReceiptSchema.omit({ 
   id: true, 
-  received_at: true 
+  received_at: true,
+  created_at: true,
+  updated_at: true
 });
 
 export const ReceiptUpdateSchema = ReceiptCreateSchema.partial();

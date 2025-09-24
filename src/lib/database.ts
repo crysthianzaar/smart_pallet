@@ -164,7 +164,7 @@ const initializeDatabase = () => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS receipts (
       id TEXT PRIMARY KEY,
-      pallet_id TEXT NOT NULL,
+      pallet_id TEXT,
       manifest_id TEXT,
       location_id TEXT NOT NULL,
       received_by TEXT NOT NULL,
@@ -172,9 +172,12 @@ const initializeDatabase = () => {
       status TEXT DEFAULT 'ok' CHECK (status IN ('ok', 'alerta', 'critico')),
       notes TEXT,
       received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (pallet_id) REFERENCES pallets(id),
       FOREIGN KEY (manifest_id) REFERENCES manifests(id),
-      FOREIGN KEY (location_id) REFERENCES locations(id)
+      FOREIGN KEY (location_id) REFERENCES locations(id),
+      CHECK ((pallet_id IS NOT NULL) OR (manifest_id IS NOT NULL))
     )
   `);
 
@@ -231,7 +234,64 @@ const initializeDatabase = () => {
   console.log('Database initialized successfully');
 };
 
+// Função para executar migrações
+const runMigrations = () => {
+  try {
+    // Migração: Alterar tabela receipts para permitir pallet_id NULL e adicionar created_at/updated_at
+    // Verificar se a migração já foi aplicada
+    const tableInfo = db.prepare("PRAGMA table_info(receipts)").all() as any[];
+    const palletIdColumn = tableInfo.find(col => col.name === 'pallet_id');
+    const createdAtColumn = tableInfo.find(col => col.name === 'created_at');
+    
+    if ((palletIdColumn && palletIdColumn.notnull === 1) || !createdAtColumn) {
+      console.log('Running migration: Making pallet_id nullable in receipts table...');
+      
+      // SQLite não suporta ALTER COLUMN, então precisamos recriar a tabela
+      db.exec(`
+        -- Criar tabela temporária com a nova estrutura
+        CREATE TABLE receipts_new (
+          id TEXT PRIMARY KEY,
+          pallet_id TEXT,
+          manifest_id TEXT,
+          location_id TEXT NOT NULL,
+          received_by TEXT NOT NULL,
+          ai_confidence REAL,
+          status TEXT DEFAULT 'ok' CHECK (status IN ('ok', 'alerta', 'critico')),
+          notes TEXT,
+          received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (pallet_id) REFERENCES pallets(id),
+          FOREIGN KEY (manifest_id) REFERENCES manifests(id),
+          FOREIGN KEY (location_id) REFERENCES locations(id),
+          CHECK ((pallet_id IS NOT NULL) OR (manifest_id IS NOT NULL))
+        );
+        
+        -- Copiar dados existentes, adicionando colunas created_at e updated_at
+        INSERT INTO receipts_new (id, pallet_id, manifest_id, location_id, received_by, ai_confidence, status, notes, received_at, created_at, updated_at)
+        SELECT id, pallet_id, manifest_id, location_id, received_by, ai_confidence, status, notes, received_at, 
+               COALESCE(received_at, CURRENT_TIMESTAMP) as created_at,
+               COALESCE(received_at, CURRENT_TIMESTAMP) as updated_at
+        FROM receipts;
+        
+        -- Remover tabela antiga e renomear nova
+        DROP TABLE receipts;
+        ALTER TABLE receipts_new RENAME TO receipts;
+        
+        -- Recriar índice
+        CREATE INDEX IF NOT EXISTS idx_receipts_pallet ON receipts(pallet_id);
+        CREATE INDEX IF NOT EXISTS idx_receipts_manifest ON receipts(manifest_id);
+      `);
+      
+      console.log('Migration completed successfully');
+    }
+  } catch (error) {
+    console.error('Migration failed:', error);
+  }
+};
+
 // Inicializar o banco na primeira execução
 initializeDatabase();
+runMigrations();
 
 export { db, initializeDatabase };

@@ -29,8 +29,7 @@ const menuItems = [
   { title: 'Pallets', href: '/pallets', icon: Package },
   { title: 'Manifestos (Saídas)', href: '/manifests', icon: FileText },
   { title: 'Recebimentos', href: '/receipts', icon: Truck },
-  { title: 'Comparações', href: '/comparisons', icon: Eye },
-  { title: 'Administração', href: '/admin', icon: Settings },
+  { title: 'Configurações', href: '/admin', icon: Settings },
 ]
 
 export function AppLayout({ children, title, subtitle, headerActions }: AppLayoutProps) {

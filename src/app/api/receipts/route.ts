@@ -10,9 +10,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = ReceiptCreateSchema.parse(body);
     
+    // Validate that either pallet_id or manifest_id is provided
+    if (!validatedData.pallet_id && !validatedData.manifest_id) {
+      return createErrorResponse('Either pallet_id or manifest_id must be provided', 400);
+    }
+
     const receiptData = {
       ...validatedData,
-      received_by: MVP_USER_ID,
+      // Keep the received_by from the form data, don't override with MVP_USER_ID
     };
     
     const receipt = await receiptRepository.create(receiptData);
