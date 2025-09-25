@@ -6,7 +6,7 @@ export const LocationType = z.enum(['origem', 'destino', 'estoque']);
 export const LocationStatus = z.enum(['active', 'inactive']);
 export const SkuStatus = z.enum(['active', 'inactive']);
 export const QrTagStatus = z.enum(['livre', 'vinculado']);
-export const PalletStatus = z.enum(['rascunho', 'selado', 'em_transporte', 'recebido', 'cancelado']);
+export const PalletStatus = z.enum(['ativo', 'em_manifesto', 'em_transito', 'recebido', 'finalizado']);
 export const PhotoType = z.enum(['frontal', 'lateral', 'superior']);
 export const PhotoStage = z.enum(['origem', 'destino']);
 export const ManifestStatus = z.enum(['rascunho', 'carregado', 'em_transito', 'entregue']);
@@ -104,7 +104,7 @@ export const PalletSchema = z.object({
   contract_id: z.string(),
   origin_location_id: z.string(),
   destination_location_id: z.string().optional(),
-  status: PalletStatus.default('rascunho'),
+  status: PalletStatus.default('ativo'),
   ai_confidence: z.number().min(0).max(100).optional(),
   requires_manual_review: z.boolean().default(false),
   // observations: z.string().optional(), // Temporarily removed until DB is updated

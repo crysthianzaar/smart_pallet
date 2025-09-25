@@ -245,7 +245,7 @@ export default function NewPalletPage() {
         origin_location_id: formData.originLocationId || 'LOC-001',
         // observations: formData.observations || '', // Temporarily removed until DB is updated
         // manifest_id: formData.manifestId ? String(formData.manifestId) : null, // Field doesn't exist in DB table
-        status: 'rascunho',
+        status: 'ativo',
         created_by: 'user-001'
       }
 

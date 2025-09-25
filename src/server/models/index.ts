@@ -69,7 +69,7 @@ export const SkuCreateSchema = z.object({
 });
 
 // Pallet schemas
-export const PalletStatusSchema = z.enum(['rascunho', 'selado', 'em_transporte', 'recebido']);
+export const PalletStatusSchema = z.enum(['ativo', 'em_manifesto', 'em_transito', 'recebido', 'finalizado']);
 
 export const PalletSchema = BaseEntitySchema.extend({
   contractOriginId: z.string(),
@@ -86,6 +86,13 @@ export const PalletSchema = BaseEntitySchema.extend({
 export const PalletCreateSchema = z.object({
   contractOriginId: z.string(),
   locationOriginId: z.string(),
+  status: PalletStatusSchema.optional(),
+  qr: z.string().optional(),
+  confGlobal: z.number().nullable().optional(),
+  requiresManualReview: z.boolean().optional(),
+  sealedBy: z.string().nullable().optional(),
+  sealedAt: z.date().nullable().optional(),
+  photos: z.array(z.string()).optional(),
 });
 
 // Pallet Item schemas

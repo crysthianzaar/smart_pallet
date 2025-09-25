@@ -33,8 +33,9 @@ export class CreatePalletTask {
 
     // Create pallet
     const pallet = await palletRepo.create({
-      ...data,
-      status: 'rascunho',
+      contractOriginId: data.contractOriginId,
+      locationOriginId: data.locationOriginId,
+      status: 'ativo',
       qr: qrData,
       confGlobal: null,
       requiresManualReview: false,
@@ -74,14 +75,13 @@ export class AttachPhotosTask {
 
   async execute(palletId: string, photoUrls: string[], userId: string): Promise<Pallet> {
     const palletRepo = this.repositoryFactory.getPalletRepository();
-    
     const pallet = await palletRepo.findById(palletId);
     if (!pallet) {
       throw new Error('Pallet not found');
     }
 
-    if (pallet.status !== 'rascunho') {
-      throw new Error('Cannot attach photos to sealed pallet');
+    if (pallet.status !== 'ativo') {
+      throw new Error('Cannot add items to sealed pallet');
     }
 
     // Update pallet with photos
@@ -181,7 +181,7 @@ export class SealPalletTask {
       throw new Error('Pallet not found');
     }
 
-    if (pallet.status !== 'rascunho') {
+    if (pallet.status !== 'ativo') {
       throw new Error('Pallet is already sealed');
     }
 
@@ -212,7 +212,7 @@ export class SealPalletTask {
 
     // Seal the pallet
     const sealedPallet = await palletRepo.update(palletId, {
-      status: 'selado',
+      status: 'em_manifesto',
       sealedBy: userId,
       sealedAt: new Date(),
     });
