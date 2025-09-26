@@ -537,7 +537,7 @@ export default function NewPalletPage() {
                             (tag.description && tag.description.toLowerCase().includes(tagSearchTerm.toLowerCase()))
                           ).length === 0 && (
                             <div className="p-3 text-center text-slate-400">
-                              Nenhuma tag encontrada para "{tagSearchTerm}"
+                              Nenhuma tag encontrada para &quot;{tagSearchTerm}&quot;
                             </div>
                           )}
                         </div>
@@ -721,7 +721,7 @@ export default function NewPalletPage() {
                   />
                   <div>
                     <span className="text-white font-medium">Não vincular a nenhum manifesto agora</span>
-                    <p className="text-xs text-slate-400 mt-1">O palete ficará com status "ativo" e poderá ser vinculado posteriormente</p>
+                    <p className="text-xs text-slate-400 mt-1">O palete ficará com status &quot;ativo&quot; e poderá ser vinculado posteriormente</p>
                   </div>
                 </label>
               </div>
@@ -763,7 +763,7 @@ export default function NewPalletPage() {
                     
                     {manifests.length === 0 && (
                       <p className="text-xs text-yellow-400 mt-2">
-                        ⚠️ Nenhum manifesto disponível. Crie um manifesto primeiro na seção "Manifestos".
+                        ⚠️ Nenhum manifesto disponível. Crie um manifesto primeiro na seção &quot;Manifestos&quot;.
                       </p>
                     )}
                   </div>

@@ -8,14 +8,13 @@ const qrTagRepository = RepositoryFactory.getQrTagRepository();
 const BatchGenerateSchema = z.object({
   prefix: z.string().min(1).max(10).default('QR'),
   startNumber: z.number().int().min(1).default(1),
-  count: z.number().int().min(1).max(1000),
-  description: z.string().optional()
+  count: z.number().int().min(1).max(1000)
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prefix, startNumber, count, description } = BatchGenerateSchema.parse(body);
+    const { prefix, startNumber, count } = BatchGenerateSchema.parse(body);
     
     // Generate QR codes
     const qrTags = [];
@@ -34,8 +33,7 @@ export async function POST(request: NextRequest) {
       
       const qrTag = await qrTagRepository.create({
         qr_code: qrCode,
-        status: 'livre',
-        description: description || `Tag gerada em lote - ${new Date().toLocaleDateString('pt-BR')}`
+        status: 'livre'
       });
       
       qrTags.push(qrTag);

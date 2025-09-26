@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { AppLayout } from '../../../components/layout/AppLayout'
 import { 
   Plus, 
@@ -66,22 +65,6 @@ const users = [
   }
 ]
 
-const getRoleColor = (role: string) => {
-  switch (role) {
-    case 'admin': return 'critical'
-    case 'conferente': return 'default'
-    default: return 'secondary'
-  }
-}
-
-const getRoleLabel = (role: string) => {
-  switch (role) {
-    case 'admin': return 'Administrador'
-    case 'conferente': return 'Conferente'
-    default: return role
-  }
-}
-
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
@@ -120,14 +103,6 @@ export default function UsersPage() {
   const deleteUser = (userId: string) => {
     // TODO: Implement API call to delete user
     console.log('Delete user:', userId)
-  }
-
-  const getRoleColor = (role: string) => {
-    return role === 'admin' ? 'purple' : 'blue'
-  }
-
-  const getRoleLabel = (role: string) => {
-    return role === 'admin' ? 'Admin' : 'Conferente'
   }
 
   return (

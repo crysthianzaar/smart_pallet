@@ -132,7 +132,7 @@ export class ScanPalletQrUC {
       throw new Error('Invalid QR code format');
     }
 
-    const [, palletId, contractId] = qrMatch;
+    const [contractId] = qrMatch;
 
     // Find pallet by QR
     const pallet = await palletRepo.findByQr(qrData);

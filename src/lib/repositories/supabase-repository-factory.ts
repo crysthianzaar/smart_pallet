@@ -70,6 +70,40 @@ class SupabaseSkuRepository extends SupabaseBaseRepository<Sku, SkuCreate, SkuUp
 
     return data as Sku[]
   }
+
+  async search(searchTerm: string): Promise<Sku[]> {
+    const { data, error } = await this.client
+      .from('skus')
+      .select('*')
+      .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      .eq('status', 'active')
+      .order('name')
+
+    if (error) {
+      throw new Error(`Error searching SKUs: ${error.message}`)
+    }
+
+    return data as Sku[]
+  }
+
+  async findByCategory(category: string): Promise<Sku[]> {
+    const { data, error } = await this.client
+      .from('skus')
+      .select('*')
+      .eq('category', category)
+      .eq('status', 'active')
+      .order('name')
+
+    if (error) {
+      throw new Error(`Error finding SKUs by category: ${error.message}`)
+    }
+
+    return data as Sku[]
+  }
+
+  async findByStatus(status: 'active' | 'inactive'): Promise<Sku[]> {
+    return this.findBy('status', status)
+  }
 }
 
 class SupabaseQrTagRepository extends SupabaseBaseRepository<QrTag, QrTagCreate, QrTagUpdate> {
@@ -231,6 +265,38 @@ class SupabaseReceiptRepository extends SupabaseBaseRepository<Receipt, ReceiptC
 
     return data as Receipt[]
   }
+
+  async getStatistics(): Promise<{
+    total: number;
+    byStatus: Record<string, number>;
+    todayCount: number;
+    avgConfidence: number;
+    criticalCount: number;
+  }> {
+    const { data, error } = await this.client
+      .from('receipts')
+      .select('status, received_at')
+
+    if (error) {
+      throw new Error(`Error getting receipt statistics: ${error.message}`)
+    }
+
+    const receipts = data as Receipt[]
+    const today = new Date().toDateString()
+    
+    const stats = {
+      total: receipts.length,
+      byStatus: receipts.reduce((acc, receipt) => {
+        acc[receipt.status] = (acc[receipt.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>),
+      todayCount: receipts.filter(r => new Date(r.received_at).toDateString() === today).length,
+      avgConfidence: 0, // Not used anymore
+      criticalCount: receipts.filter(r => r.status === 'critico').length
+    }
+
+    return stats
+  }
 }
 
 class SupabaseComparisonRepository extends SupabaseBaseRepository<Comparison, ComparisonCreate, ComparisonUpdate> {
@@ -262,6 +328,75 @@ class SupabaseComparisonRepository extends SupabaseBaseRepository<Comparison, Co
     }
 
     return data as Comparison[]
+  }
+
+  async getStatistics(): Promise<{
+    total: number;
+    byStatus: Record<string, number>;
+    byType: Record<string, number>;
+    critical: number;
+  }> {
+    try {
+      // Get total count
+      const { count: total, error: totalError } = await this.client
+        .from('comparisons')
+        .select('*', { count: 'exact', head: true })
+
+      if (totalError) {
+        throw new Error(`Error getting total comparisons: ${totalError.message}`)
+      }
+
+      // Get count by status
+      const { data: statusData, error: statusError } = await this.client
+        .from('comparisons')
+        .select('status')
+
+      if (statusError) {
+        throw new Error(`Error getting comparisons by status: ${statusError.message}`)
+      }
+
+      // Get count by difference type
+      const { data: typeData, error: typeError } = await this.client
+        .from('comparisons')
+        .select('difference_type')
+
+      if (typeError) {
+        throw new Error(`Error getting comparisons by type: ${typeError.message}`)
+      }
+
+      // Get critical count (falta or avaria)
+      const { count: critical, error: criticalError } = await this.client
+        .from('comparisons')
+        .select('*', { count: 'exact', head: true })
+        .or('difference_type.eq.falta,difference_type.eq.avaria')
+
+      if (criticalError) {
+        throw new Error(`Error getting critical comparisons: ${criticalError.message}`)
+      }
+
+      // Process status counts
+      const byStatus: Record<string, number> = {}
+      statusData?.forEach(item => {
+        const status = item.status || 'unknown'
+        byStatus[status] = (byStatus[status] || 0) + 1
+      })
+
+      // Process type counts
+      const byType: Record<string, number> = {}
+      typeData?.forEach(item => {
+        const type = item.difference_type || 'unknown'
+        byType[type] = (byType[type] || 0) + 1
+      })
+
+      return {
+        total: total || 0,
+        byStatus,
+        byType,
+        critical: critical || 0
+      }
+    } catch (error) {
+      throw new Error(`Error getting comparison statistics: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 }
 

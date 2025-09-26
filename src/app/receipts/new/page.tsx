@@ -7,15 +7,11 @@ import {
   Package, 
   Save,
   ArrowLeft,
-  MapPin,
   CheckCircle,
   AlertCircle,
   Search,
-  QrCode,
   User,
   FileText,
-  Camera,
-  Plus
 } from 'lucide-react'
 
 interface Manifest {
@@ -257,7 +253,7 @@ export default function NewReceiptPage() {
                     {manifestSearchTerm ? 'Nenhum manifesto encontrado para a busca' : 'Nenhum manifesto disponível para recebimento'}
                   </p>
                   <p className="text-slate-500 text-sm mt-2">
-                    Apenas manifestos com status "Em Trânsito" podem ser recebidos
+                    Apenas manifestos com status &quot;Em Trânsito&quot; podem ser recebidos
                   </p>
                 </div>
               )}

@@ -415,7 +415,7 @@ export default function NewManifestPage() {
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Selecionar Paletes</h2>
             <p className="text-slate-400 text-sm mb-6">
-              Selecione os paletes com status "ativo" que serão incluídos neste manifesto
+              Selecione os paletes com status &quot;ativo&quot; que serão incluídos neste manifesto
             </p>
             
             {/* Search */}

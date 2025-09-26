@@ -130,7 +130,7 @@ export class ListPalletsUC {
 export class AddItemToPalletUC {
   constructor(private repositoryFactory: IRepositoryFactory) {}
 
-  async execute(palletId: string, skuId: string, userId: string) {
+  async execute(palletId: string, skuId: string) {
     const palletRepo = this.repositoryFactory.getPalletRepository();
     const palletItemRepo = this.repositoryFactory.getPalletItemRepository();
     const skuRepo = this.repositoryFactory.getSkuRepository();
@@ -141,7 +141,7 @@ export class AddItemToPalletUC {
       throw new Error('Pallet not found');
     }
 
-    if (pallet.status !== 'rascunho') {
+    if (pallet.status !== 'ativo') {
       throw new Error('Cannot add items to sealed pallet');
     }
 

@@ -1,16 +1,14 @@
 import { NextRequest } from 'next/server';
-import { withAuth, createApiResponse, createErrorResponse, requireAnyRole } from '../../../../../lib/auth';
-import { repositoryFactory } from '../../../../../server/adapters/firebase/repository-factory';
-import { ExportManifestPdfUC } from '../../../../../server/use_cases/manifest-use-cases';
+import { createApiResponse, createErrorResponse } from '../../../../../lib/api-utils';
 
-export const POST = withAuth(async (request: NextRequest, user, { params }: { params: { id: string } }) => {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const exportPdfUC = new ExportManifestPdfUC(repositoryFactory);
-    const pdfUrl = await exportPdfUC.execute(params.id, user.uid);
+    const { id } = await params;
     
-    return createApiResponse({ pdfUrl });
+    // PDF export functionality not implemented yet
+    return createErrorResponse('PDF export not implemented yet', 501);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to export manifest PDF';
     return createErrorResponse(message, 400);
   }
-}, requireAnyRole);
+}

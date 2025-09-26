@@ -219,8 +219,8 @@ export default function EditManifestPage() {
             <AlertTriangle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-yellow-400 mb-2">Edição não permitida</h2>
             <p className="text-yellow-300 mb-4">
-              Apenas manifestos com status "rascunho" podem ser editados. 
-              Este manifesto está com status "{manifest?.status}".
+              Apenas manifestos com status &quot;rascunho&quot; podem ser editados. 
+              Este manifesto está com status &quot;{manifest?.status}&quot;.
             </p>
             <div className="flex gap-3 justify-center">
               <Link

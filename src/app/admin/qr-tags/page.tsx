@@ -7,7 +7,6 @@ import {
   QrCode, 
   Search,
   Download,
-  Upload,
   CheckCircle,
   XCircle,
   Package

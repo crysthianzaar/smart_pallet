@@ -18,9 +18,6 @@ import {
   Share,
   FileText,
   Tag,
-  Clock,
-  User,
-  MapPin,
   Building
 } from 'lucide-react'
 

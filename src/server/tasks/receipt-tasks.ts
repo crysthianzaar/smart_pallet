@@ -1,4 +1,4 @@
-import { Receipt, ReceiptCreate, Comparison, PalletItem } from '../models';
+import { Receipt, ReceiptCreate, Comparison } from '../models';
 import { IRepositoryFactory } from '../repo/interfaces';
 
 // Configuration constants
@@ -19,7 +19,7 @@ export class ReceivePalletTask {
       throw new Error('Pallet not found');
     }
 
-    if (pallet.status !== 'em_transporte') {
+    if (pallet.status !== 'em_transito') {
       throw new Error('Pallet is not in transport status');
     }
 
@@ -39,7 +39,6 @@ export class ReceivePalletTask {
     const receipt = await receiptRepo.create({
       ...data,
       receivedBy: userId,
-      receivedAt: new Date(),
       photos: data.photos || [],
     });
 

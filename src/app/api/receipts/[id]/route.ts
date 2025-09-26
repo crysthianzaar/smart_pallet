@@ -39,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           
           // Update display name with manifest number
           receiptWithDisplayName.display_name = `RECEIPT-${manifest.manifest_number || receipt.manifest_id}`;
-          (receiptWithDisplayName as any).manifest_number = manifest.manifest_number;
+          (receiptWithDisplayName as Record<string, unknown>).manifest_number = manifest.manifest_number;
         }
       } catch (manifestError) {
         console.error('Error fetching manifest details:', manifestError);

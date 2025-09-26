@@ -294,7 +294,6 @@ export default function SkusPage() {
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Categoria
@@ -427,7 +426,7 @@ export default function SkusPage() {
         {filteredSkus.length === 0 && searchTerm && (
           <div className="text-center py-12">
             <Search className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">Nenhum SKU encontrado para "{searchTerm}"</p>
+            <p className="text-slate-400">Nenhum SKU encontrado para &quot;{searchTerm}&quot;</p>
           </div>
         )}
       </div>

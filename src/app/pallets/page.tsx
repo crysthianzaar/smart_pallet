@@ -13,12 +13,10 @@ import {
   Trash2,
   AlertTriangle,
   CheckCircle,
-  Clock,
   Truck,
   FileText,
   Tag,
-  Camera,
-  ExternalLink
+  Camera
 } from 'lucide-react'
 
 interface Pallet {

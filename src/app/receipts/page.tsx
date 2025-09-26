@@ -10,11 +10,9 @@ import {
   Truck, 
   Package,
   Eye,
-  Camera,
   CheckCircle,
   AlertTriangle,
   Clock,
-  MapPin,
   Calendar,
   User,
   Loader2
@@ -38,15 +36,6 @@ interface ReceiptStats {
   todayCount: number
   avgConfidence: number
   criticalCount: number
-}
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'ok': return 'success'
-    case 'alerta': return 'warning'
-    case 'critico': return 'critical'
-    default: return 'secondary'
-  }
 }
 
 const getStatusLabel = (status: string) => {

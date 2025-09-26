@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server';
-import { withAuth, createApiResponse, createErrorResponse, requireAdmin } from '../../../../lib/auth';
+import { createApiResponse, createErrorResponse } from '../../../../lib/api-utils';
 import { RepositoryFactory } from '../../../../lib/repositories';
 import { ContractCreateSchema } from '../../../../lib/models';
 
-export const POST = withAuth(async (request: NextRequest, user) => {
+const contractRepository = RepositoryFactory.getContractRepository();
+
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
@@ -13,8 +15,6 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     }
     
     const validatedData = ContractCreateSchema.parse(body);
-    
-    const contractRepository = RepositoryFactory.getContractRepository();
     const contract = await contractRepository.create(validatedData);
     
     return createApiResponse(contract, 201);
@@ -22,11 +22,10 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     const message = error instanceof Error ? error.message : 'Failed to create contract';
     return createErrorResponse(message, 400);
   }
-}, requireAdmin);
+}
 
-export const GET = withAuth(async (request: NextRequest, user) => {
+export async function GET(request: NextRequest) {
   try {
-    const contractRepository = RepositoryFactory.getContractRepository();
     const contracts = await contractRepository.findAll();
     
     return createApiResponse(contracts);
@@ -34,4 +33,4 @@ export const GET = withAuth(async (request: NextRequest, user) => {
     const message = error instanceof Error ? error.message : 'Failed to list contracts';
     return createErrorResponse(message, 400);
   }
-}, requireAdmin);
+}

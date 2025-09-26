@@ -212,8 +212,8 @@ export default function EditPalletPage() {
             <AlertTriangle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-yellow-400 mb-2">Edição não permitida</h2>
             <p className="text-yellow-300 mb-4">
-              Apenas pallets com status "ativo" podem ser editados. 
-              Este pallet está com status "{pallet?.status}".
+              Apenas pallets com status &quot;ativo&quot; podem ser editados. 
+              Este pallet está com status &quot;{pallet?.status}&quot;.
             </p>
             <div className="flex gap-3 justify-center">
               <Link

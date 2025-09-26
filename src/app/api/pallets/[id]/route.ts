@@ -5,9 +5,10 @@ import { PalletUpdateSchema } from '../../../../lib/models';
 
 const palletRepository = RepositoryFactory.getPalletRepository();
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const palletData = await palletRepository.getWithDetails(params.id);
+    const { id } = await params;
+    const palletData = await palletRepository.getWithDetails(id);
     
     if (!palletData) {
       return createErrorResponse('Pallet not found', 404);
@@ -21,16 +22,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    console.log('Update pallet request:', { id: params.id, body });
+    console.log('Update pallet request:', { id, body });
     
     // Validate input data
     const validatedData = PalletUpdateSchema.parse(body);
     
     // Check if pallet exists
-    const existingPallet = await palletRepository.findById(params.id);
+    const existingPallet = await palletRepository.findById(id);
     if (!existingPallet) {
       return createErrorResponse('Pallet not found', 404);
     }
@@ -41,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     
     // Update the pallet
-    const updatedPallet = await palletRepository.update(params.id, validatedData);
+    const updatedPallet = await palletRepository.update(id, validatedData);
     
     if (!updatedPallet) {
       return createErrorResponse('Failed to update pallet', 500);

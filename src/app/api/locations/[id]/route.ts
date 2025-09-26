@@ -7,10 +7,11 @@ const locationRepository = RepositoryFactory.getLocationRepository();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const location = await locationRepository.findById(params.id);
+    const { id } = await params;
+    const location = await locationRepository.findById(id);
     
     if (!location) {
       return createErrorResponse('Location not found', 404);
@@ -25,13 +26,14 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const validatedData = LocationUpdateSchema.parse(body);
     
-    const location = await locationRepository.update(params.id, validatedData);
+    const location = await locationRepository.update(id, validatedData);
     
     if (!location) {
       return createErrorResponse('Location not found', 404);
@@ -46,10 +48,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const success = await locationRepository.delete(params.id);
+    const { id } = await params;
+    const success = await locationRepository.delete(id);
     
     if (!success) {
       return createErrorResponse('Location not found', 404);

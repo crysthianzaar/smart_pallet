@@ -1,16 +1,18 @@
 import { NextRequest } from 'next/server';
-import { withAuth, createApiResponse, createErrorResponse, requireAnyRole } from '../../../../../lib/auth';
-import { repositoryFactory } from '../../../../../server/adapters/firebase/repository-factory';
-import { MarkLoadedUC } from '../../../../../server/use_cases/manifest-use-cases';
+import { createApiResponse, createErrorResponse } from '../../../../../lib/api-utils';
+import { RepositoryFactory } from '../../../../../lib/repositories';
 
-export const PATCH = withAuth(async (request: NextRequest, user, { params }: { params: { id: string } }) => {
+const manifestRepository = RepositoryFactory.getManifestRepository();
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const markLoadedUC = new MarkLoadedUC(repositoryFactory);
-    const manifest = await markLoadedUC.execute(params.id, user.uid);
+    const { id } = await params;
     
-    return createApiResponse(manifest);
+    const success = await manifestRepository.markAsLoaded(id);
+    
+    return createApiResponse({ success });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to mark manifest as loaded';
     return createErrorResponse(message, 400);
   }
-}, requireAnyRole);
+}

@@ -24,19 +24,9 @@ export class CreateManifestTask {
       throw new Error('Destination location not found');
     }
 
-    // Generate manifest code
+    // Create manifest (code and other fields will be set by repository)
     const manifestRepo = this.repositoryFactory.getManifestRepository();
-    const code = await manifestRepo.generateCode();
-
-    // Create manifest
-    const manifest = await manifestRepo.create({
-      ...data,
-      code,
-      status: 'rascunho',
-      loadedBy: null,
-      loadedAt: null,
-      pdfUrl: null,
-    });
+    const manifest = await manifestRepo.create(data);
 
     // Create audit log
     await this.createAuditLog('manifest_created', 'manifest', manifest.id, userId, {
@@ -85,8 +75,8 @@ export class AddPalletToManifestTask {
       throw new Error('Pallet not found');
     }
 
-    if (pallet.status !== 'selado') {
-      throw new Error('Only sealed pallets can be added to manifest');
+    if (pallet.status !== 'ativo') {
+      throw new Error('Only active pallets can be added to manifest');
     }
 
     // Check if pallet is already in another manifest
@@ -165,10 +155,10 @@ export class MarkManifestLoadedTask {
       loadedAt: new Date(),
     });
 
-    // Update all pallets status to 'em_transporte'
+    // Update all pallets status to 'em_transito'
     for (const manifestPallet of manifestPallets) {
       await palletRepo.update(manifestPallet.palletId, {
-        status: 'em_transporte',
+        status: 'em_transito',
       });
     }
 

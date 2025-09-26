@@ -13,11 +13,12 @@ export class CreateUserUC {
       throw new Error('User with this email already exists');
     }
 
-    // Create user (password handling would be done by Firebase Auth)
+    // Create user with temporary password (should be changed on first login)
     const user = await userRepo.create({
       email: data.email,
       name: data.name,
       role: data.role,
+      password: data.password,
     });
 
     // Create audit log

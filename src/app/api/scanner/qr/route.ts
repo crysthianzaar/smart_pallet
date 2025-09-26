@@ -5,6 +5,14 @@ import { RepositoryFactory } from '../../../../lib/repositories';
 const qrTagRepository = RepositoryFactory.getQrTagRepository();
 const palletRepository = RepositoryFactory.getPalletRepository();
 
+interface ScanResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+  pallet?: unknown;
+  action?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,19 +22,15 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('QR code is required', 400);
     }
     
-    // Find the QR tag
     const qrTag = await qrTagRepository.findByQrCode(qrCode);
     if (!qrTag) {
       return createErrorResponse('QR code not found', 404);
     }
     
-    let response: {
-      qrTag: any;
-      pallet: any;
-      action: string;
-    } = {
-      qrTag,
-      pallet: null,
+    const response: ScanResponse = { 
+      success: true, 
+      message: 'QR code scanned successfully', 
+      data: qrTag,
       action: 'create_new' // Default action
     };
     
@@ -38,16 +42,19 @@ export async function POST(request: NextRequest) {
         
         // Determine action based on pallet status
         switch (pallet.status) {
-          case 'rascunho':
+          case 'ativo':
             response.action = 'continue_editing';
             break;
-          case 'selado':
+          case 'em_manifesto':
             response.action = 'load_to_manifest';
             break;
-          case 'em_transporte':
+          case 'em_transito':
             response.action = 'receive_pallet';
             break;
           case 'recebido':
+            response.action = 'view_completed';
+            break;
+          case 'finalizado':
             response.action = 'view_completed';
             break;
           default:

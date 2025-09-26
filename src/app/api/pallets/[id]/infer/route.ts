@@ -1,16 +1,14 @@
 import { NextRequest } from 'next/server';
-import { withAuth, createApiResponse, createErrorResponse, requireAnyRole } from '../../../../../lib/auth';
-import { repositoryFactory } from '../../../../../server/adapters/firebase/repository-factory';
-import { InferAndReviewUC } from '../../../../../server/use_cases/pallet-use-cases';
+import { createApiResponse, createErrorResponse } from '../../../../../lib/api-utils';
 
-export const POST = withAuth(async (request: NextRequest, user, { params }: { params: { id: string } }) => {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const inferAndReviewUC = new InferAndReviewUC(repositoryFactory);
-    const result = await inferAndReviewUC.execute(params.id);
+    const { id } = await params;
     
-    return createApiResponse(result);
+    // AI inference functionality not implemented yet
+    return createErrorResponse('AI inference not implemented yet', 501);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to infer counts';
     return createErrorResponse(message, 400);
   }
-}, requireAnyRole);
+}

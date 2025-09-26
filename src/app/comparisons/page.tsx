@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AppLayout } from '../../components/layout/AppLayout'
@@ -131,7 +131,7 @@ const getStatusIcon = (status: string) => {
   }
 }
 
-export default function ComparisonsPage() {
+function ComparisonsContent() {
   const searchParams = useSearchParams()
   const receiptId = searchParams.get('receiptId')
   
@@ -675,5 +675,19 @@ export default function ComparisonsPage() {
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+export default function ComparisonsPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout title="Comparações" subtitle="Análise de diferenças entre origem e destino">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </AppLayout>
+    }>
+      <ComparisonsContent />
+    </Suspense>
   )
 }

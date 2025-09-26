@@ -162,6 +162,7 @@ export const ReceiptSchema = BaseEntitySchema.extend({
 
 export const ReceiptCreateSchema = z.object({
   palletId: z.string(),
+  receivedBy: z.string(),
   destinationLocationId: z.string(),
   photos: z.array(z.string()).optional(),
   observations: z.string().optional(),
@@ -189,9 +190,17 @@ export const AuditActionSchema = z.enum([
   'count_reviewed',
   'manifest_created',
   'pallet_added_to_manifest',
+  'pallet_removed_from_manifest',
   'manifest_loaded',
   'pallet_received',
   'comparison_created',
+  'user_created',
+  'contract_created',
+  'contract_updated',
+  'location_created',
+  'location_updated',
+  'sku_created',
+  'sku_updated',
 ]);
 
 export const AuditLogSchema = BaseEntitySchema.extend({
