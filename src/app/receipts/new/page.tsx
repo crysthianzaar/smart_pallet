@@ -54,7 +54,6 @@ export default function NewReceiptPage() {
   // Form data
   const [formData, setFormData] = useState({
     manifestId: '',
-    locationId: '',
     receivedBy: '',
     notes: '',
     status: 'ok' as 'ok' | 'alerta' | 'critico'
@@ -98,15 +97,13 @@ export default function NewReceiptPage() {
     setSelectedManifest(manifest)
     setFormData(prev => ({
       ...prev,
-      manifestId: manifest.id,
-      locationId: manifest.destination_location_id || ''
+      manifestId: manifest.id
     }))
     setManifestSearchTerm('')
   }
 
   const canSubmit = () => {
     return formData.manifestId !== '' && 
-           formData.locationId !== '' && 
            formData.receivedBy !== ''
   }
 
@@ -118,10 +115,9 @@ export default function NewReceiptPage() {
 
       const submitData = {
         manifest_id: formData.manifestId,
-        location_id: formData.locationId,
         received_by: formData.receivedBy,
         status: formData.status,
-        notes: formData.notes || undefined
+        observations: formData.notes || undefined
       }
 
       console.log('Submitting receipt data:', submitData)
@@ -298,7 +294,7 @@ export default function NewReceiptPage() {
                 <button
                   onClick={() => {
                     setSelectedManifest(null)
-                    setFormData(prev => ({ ...prev, manifestId: '', locationId: '' }))
+                    setFormData(prev => ({ ...prev, manifestId: '' }))
                   }}
                   className="px-3 py-2 bg-slate-600/50 text-slate-300 border border-slate-500/50 rounded-lg hover:bg-slate-500/50 transition-all duration-200 text-sm"
                 >
@@ -318,27 +314,6 @@ export default function NewReceiptPage() {
             </h2>
             
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Local de Recebimento *
-                </label>
-                <select
-                  value={formData.locationId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, locationId: e.target.value }))}
-                  className="w-full px-3 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  required
-                  disabled={loadingData}
-                >
-                  <option value="">
-                    {loadingData ? 'Carregando locais...' : 'Selecione o local de recebimento'}
-                  </option>
-                  {locations.map(location => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} {location.city && `- ${location.city}/${location.state}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">

@@ -204,13 +204,11 @@ export const ManifestPalletCreateSchema = ManifestPalletSchema.omit({
 export const ReceiptSchema = z.object({
   id: z.string(),
   pallet_id: z.string().optional(),
-  manifest_id: z.string().optional(),
-  location_id: z.string(),
+  manifest_id: z.string(),
   received_by: z.string(),
-  ai_confidence: z.number().min(0).max(100).optional(),
+  received_at: z.string().datetime(),
   status: ReceiptStatus.default('ok'),
-  notes: z.string().optional(),
-  received_at: z.string().datetime().optional(),
+  observations: z.string().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
 });

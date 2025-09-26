@@ -30,6 +30,18 @@ class SupabaseLocationRepository extends SupabaseBaseRepository<Location, Locati
   async findActive(): Promise<Location[]> {
     return this.findBy('status', 'active')
   }
+
+  async findOrigins(): Promise<Location[]> {
+    return this.findBy('type', 'origem')
+  }
+
+  async findDestinations(): Promise<Location[]> {
+    return this.findBy('type', 'destino')
+  }
+
+  async findByStatus(status: 'active' | 'inactive'): Promise<Location[]> {
+    return this.findBy('status', status)
+  }
 }
 
 class SupabaseSkuRepository extends SupabaseBaseRepository<Sku, SkuCreate, SkuUpdate> {
@@ -161,6 +173,46 @@ class SupabaseReceiptRepository extends SupabaseBaseRepository<Receipt, ReceiptC
 
   async findByPallet(palletId: string): Promise<Receipt[]> {
     return this.findBy('pallet_id', palletId)
+  }
+
+  async findAllWithDetails(limit: number = 50, offset: number = 0): Promise<any[]> {
+    const { data, error } = await this.client
+      .from('receipts')
+      .select(`
+        *,
+        manifests!inner(manifest_number),
+        pallets(id)
+      `)
+      .order('received_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      throw new Error(`Error finding receipts with details: ${error.message}`)
+    }
+
+    return data.map(item => ({
+      ...item,
+      display_name: `RECEIPT-${item.manifests?.manifest_number || item.manifest_id}`,
+      manifest_number: item.manifests?.manifest_number,
+      manifests: undefined, // Remove nested object
+      pallets: undefined   // Remove nested object
+    }))
+  }
+
+
+  async findByDateRange(startDate: Date, endDate: Date): Promise<Receipt[]> {
+    const { data, error } = await this.client
+      .from('receipts')
+      .select('*')
+      .gte('received_at', startDate.toISOString())
+      .lte('received_at', endDate.toISOString())
+      .order('received_at', { ascending: false })
+
+    if (error) {
+      throw new Error(`Error finding receipts by date range: ${error.message}`)
+    }
+
+    return data as Receipt[]
   }
 
   async findRecent(days: number = 7): Promise<Receipt[]> {

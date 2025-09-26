@@ -4,26 +4,43 @@ import { RepositoryFactory } from '../../../lib/repositories';
 import { ReceiptCreateSchema } from '../../../lib/models';
 
 const receiptRepository = RepositoryFactory.getReceiptRepository();
+const manifestRepository = RepositoryFactory.getManifestRepository();
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Creating receipt with data:', body);
+    
     const validatedData = ReceiptCreateSchema.parse(body);
     
-    // Validate that either pallet_id or manifest_id is provided
-    if (!validatedData.pallet_id && !validatedData.manifest_id) {
-      return createErrorResponse('Either pallet_id or manifest_id must be provided', 400);
+    // Validate that manifest_id is provided (required field)
+    if (!validatedData.manifest_id) {
+      return createErrorResponse('manifest_id is required', 400);
     }
 
     const receiptData = {
       ...validatedData,
-      // Keep the received_by from the form data, don't override with MVP_USER_ID
+      received_at: new Date().toISOString(),
     };
     
+    console.log('Final receipt data:', receiptData);
+    
     const receipt = await receiptRepository.create(receiptData);
+    console.log('Receipt created:', receipt);
+    
+    // Update manifest status to 'entregue' (delivered) when receipt is created
+    try {
+      const manifestUpdated = await manifestRepository.markAsDelivered(validatedData.manifest_id);
+      console.log('Manifest status updated to delivered:', manifestUpdated);
+    } catch (manifestError) {
+      console.error('Error updating manifest status:', manifestError);
+      // Don't fail the receipt creation if manifest update fails
+      // The receipt is still valid even if manifest status update fails
+    }
     
     return createApiResponse(receipt, 201);
   } catch (error) {
+    console.error('Error creating receipt:', error);
     const message = error instanceof Error ? error.message : 'Failed to create receipt';
     return createErrorResponse(message, 400);
   }
@@ -32,7 +49,6 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const locationId = searchParams.get('locationId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status');
@@ -42,12 +58,10 @@ export async function GET(request: NextRequest) {
     let receipts;
     if (startDate && endDate) {
       receipts = await receiptRepository.findByDateRange(new Date(startDate), new Date(endDate));
-    } else if (locationId) {
-      receipts = await receiptRepository.findByLocation(locationId);
-    } else if (status) {
-      receipts = await receiptRepository.findByStatus(status);
+    } else if (status && ['ok', 'alerta', 'critico'].includes(status)) {
+      receipts = await receiptRepository.findByStatus(status as 'ok' | 'alerta' | 'critico');
     } else {
-      receipts = await receiptRepository.findAll(limit, offset);
+      receipts = await receiptRepository.findAllWithDetails(limit, offset);
     }
     
     return createApiResponse(receipts);

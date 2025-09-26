@@ -169,50 +169,69 @@ export default function PalletDetailsPage() {
       title={pallet.id.startsWith('CTX-') ? `Pallet ${pallet.id}` : `Pallet ${pallet.id}`}
       subtitle="Detalhes completos do pallet"
       headerActions={
-        <div className="flex gap-3">
-          <Link
-            href="/pallets"
-            className="inline-flex items-center px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Link>
-          <button className="inline-flex items-center px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors">
-            <Share className="h-4 w-4 mr-2" />
-            Compartilhar
-          </button>
-          <button className="inline-flex items-center px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors">
-            <Download className="h-4 w-4 mr-2" />
-            Relatório
-          </button>
-          {pallet.status === 'ativo' && (
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+          {/* Primeira linha - Voltar e Editar */}
+          <div className="flex gap-2">
             <Link
-              href={`/pallets/${pallet.id}/edit`}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-lg hover:from-blue-600 hover:to-cyan-500 transition-all duration-200"
+              href="/pallets"
+              className="inline-flex items-center px-3 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors text-sm"
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
+              <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Voltar</span>
             </Link>
-          )}
+            {pallet.status === 'ativo' && (
+              <Link
+                href={`/pallets/${pallet.id}/edit`}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-lg hover:from-blue-600 hover:to-cyan-500 transition-all duration-200 text-sm"
+              >
+                <Edit className="h-4 w-4 mr-1 sm:mr-2" />
+                Editar
+              </Link>
+            )}
+          </div>
+          
+          {/* Segunda linha - Ações secundárias */}
+          <div className="flex gap-2 sm:hidden">
+            <button className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors text-sm">
+              <Share className="h-4 w-4 mr-1" />
+              Compartilhar
+            </button>
+            <button className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors text-sm">
+              <Download className="h-4 w-4 mr-1" />
+              Relatório
+            </button>
+          </div>
+          
+          {/* Desktop - Ações secundárias */}
+          <div className="hidden sm:flex gap-3">
+            <button className="inline-flex items-center px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors">
+              <Share className="h-4 w-4 mr-2" />
+              Compartilhar
+            </button>
+            <button className="inline-flex items-center px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors">
+              <Download className="h-4 w-4 mr-2" />
+              Relatório
+            </button>
+          </div>
         </div>
       }
     >
       <div className="space-y-6">
         {/* Header com ID e Status */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white flex items-center space-x-3 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center space-x-2 sm:space-x-3 mb-3">
                 {pallet.id.startsWith('CTX-') ? (
-                  <>
-                    <span className="bg-blue-500/30 text-blue-300 px-3 py-1 rounded-md font-mono text-lg">CTX</span>
-                    <span className="font-mono">{pallet.id.replace('CTX-', '')}</span>
-                  </>
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <span className="bg-blue-500/30 text-blue-300 px-2 sm:px-3 py-1 rounded-md font-mono text-sm sm:text-lg flex-shrink-0">CTX</span>
+                    <span className="font-mono text-lg sm:text-2xl truncate">{pallet.id.replace('CTX-', '')}</span>
+                  </div>
                 ) : (
-                  <span>{pallet.id}</span>
+                  <span className="truncate">{pallet.id}</span>
                 )}
               </h1>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getStatusColor(pallet.status)}`}>
                   {getStatusIcon(pallet.status)}
                   {getStatusLabel(pallet.status)}
@@ -220,13 +239,14 @@ export default function PalletDetailsPage() {
                 {pallet.requires_manual_review && (
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-red-500/20 text-red-400 border border-red-500/30">
                     <AlertTriangle className="h-4 w-4" />
-                    Revisão Necessária
+                    <span className="hidden sm:inline">Revisão Necessária</span>
+                    <span className="sm:hidden">Revisão</span>
                   </div>
                 )}
                 {pallet.qr_code && (
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
                     <QrCode className="h-4 w-4" />
-                    {pallet.qr_code}
+                    <span className="font-mono text-xs sm:text-sm">{pallet.qr_code}</span>
                   </div>
                 )}
               </div>

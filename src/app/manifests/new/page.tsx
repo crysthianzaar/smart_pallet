@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '../../../components/layout/AppLayout'
+import { SuccessModal } from '../../../components/ui/SuccessModal'
 import { 
   FileText, 
   Plus, 
@@ -63,6 +64,8 @@ export default function NewManifestPage() {
   const [selectedPallets, setSelectedPallets] = useState<string[]>([])
   const [palletSearchTerm, setPalletSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [createdManifestId, setCreatedManifestId] = useState<string | null>(null)
 
   useEffect(() => {
     loadInitialData()
@@ -87,10 +90,13 @@ export default function NewManifestPage() {
       }
 
       // Load active pallets
-      const palletsRes = await fetch('/api/pallets?status=rascunho')
+      const palletsRes = await fetch('/api/pallets?status=ativo')
       if (palletsRes.ok) {
         const palletsData = await palletsRes.json()
+        console.log('Loaded pallets:', palletsData)
         setAvailablePallets(palletsData.data || palletsData || [])
+      } else {
+        console.error('Failed to load pallets:', palletsRes.status, palletsRes.statusText)
       }
     } catch (err) {
       console.error('Error loading initial data:', err)
@@ -150,8 +156,14 @@ export default function NewManifestPage() {
       const result = await response.json()
       console.log('Success result:', result)
       
-      alert('Manifesto criado com sucesso!')
-      router.push('/manifests')
+      // Show success toast
+      setCreatedManifestId(result.id || result.manifest?.id)
+      setShowSuccessToast(true)
+      
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        router.push('/manifests')
+      }, 3000)
       
     } catch (err) {
       console.error('Submit error:', err)
@@ -403,7 +415,7 @@ export default function NewManifestPage() {
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Selecionar Paletes</h2>
             <p className="text-slate-400 text-sm mb-6">
-              Selecione os paletes ativos que serão incluídos neste manifesto
+              Selecione os paletes com status "ativo" que serão incluídos neste manifesto
             </p>
             
             {/* Search */}
@@ -418,8 +430,8 @@ export default function NewManifestPage() {
               />
             </div>
 
-            {/* Selected count */}
-            <div className="mb-4">
+            {/* Selected count and available count */}
+            <div className="mb-4 flex flex-wrap gap-2">
               <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                 selectedPallets.length > 0
                   ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
@@ -427,6 +439,16 @@ export default function NewManifestPage() {
               }`}>
                 {selectedPallets.length} palete(s) selecionado(s)
               </div>
+              
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                {availablePallets.length} palete(s) disponível(is)
+              </div>
+              
+              {filteredPallets.length !== availablePallets.length && (
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                  {filteredPallets.length} palete(s) filtrado(s)
+                </div>
+              )}
             </div>
 
             {/* Pallets grid */}
@@ -464,7 +486,7 @@ export default function NewManifestPage() {
               <div className="text-center py-8">
                 <Package className="h-12 w-12 text-slate-600 mx-auto mb-4" />
                 <p className="text-slate-400">
-                  {palletSearchTerm ? 'Nenhum palete encontrado para a busca' : 'Nenhum palete ativo disponível'}
+                  {palletSearchTerm ? 'Nenhum palete encontrado para a busca' : 'Nenhum palete com status "ativo" disponível'}
                 </p>
               </div>
             )}
@@ -511,6 +533,33 @@ export default function NewManifestPage() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessToast}
+        onClose={() => {
+          setShowSuccessToast(false)
+          router.push('/manifests')
+        }}
+        title="Manifesto Criado com Sucesso! 🎉"
+        message="Seu manifesto foi criado e os pallets foram adicionados automaticamente."
+        details={createdManifestId ? `ID: ${createdManifestId}` : undefined}
+        autoCloseDelay={3000}
+        primaryAction={{
+          label: "Ver Manifestos",
+          onClick: () => {
+            setShowSuccessToast(false)
+            router.push('/manifests')
+          }
+        }}
+        secondaryAction={createdManifestId ? {
+          label: "Ver Detalhes",
+          onClick: () => {
+            setShowSuccessToast(false)
+            router.push(`/manifests/${createdManifestId}`)
+          }
+        } : undefined}
+      />
     </AppLayout>
   )
 }

@@ -25,15 +25,18 @@ export class SupabaseManifestRepository extends SupabaseBaseRepository<Manifest,
   async getWithDetails(manifestId: string): Promise<{
     manifest: Manifest;
     pallets: any[];
+    contract?: any;
+    originLocation?: any;
+    destinationLocation?: any;
   } | null> {
     // Get manifest with related data
     const { data: manifestData, error: manifestError } = await this.client
       .from('manifests')
       .select(`
         *,
-        contracts!inner(name, company),
-        origin_location:locations!manifests_origin_location_id_fkey(name),
-        destination_location:locations!manifests_destination_location_id_fkey(name)
+        contracts!inner(id, name, company, contact_email, contact_phone, status),
+        origin_location:locations!manifests_origin_location_id_fkey(id, name, type, address, city, state, postal_code),
+        destination_location:locations!manifests_destination_location_id_fkey(id, name, type, address, city, state, postal_code)
       `)
       .eq('id', manifestId)
       .single()
@@ -67,7 +70,7 @@ export class SupabaseManifestRepository extends SupabaseBaseRepository<Manifest,
           id,
           qr_tag_id,
           status,
-          qr_tags!inner(qr_code)
+          qr_tags!pallets_qr_tag_id_fkey(qr_code)
         )
       `)
       .eq('manifest_id', manifestId)
@@ -83,7 +86,13 @@ export class SupabaseManifestRepository extends SupabaseBaseRepository<Manifest,
       qr_tags: undefined,
     }))
 
-    return { manifest, pallets }
+    return { 
+      manifest, 
+      pallets,
+      contract: manifestData.contracts,
+      originLocation: manifestData.origin_location,
+      destinationLocation: manifestData.destination_location
+    }
   }
 
   async addPallet(manifestId: string, palletId: string): Promise<boolean> {

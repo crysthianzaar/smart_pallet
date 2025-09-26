@@ -98,36 +98,52 @@ export function AppLayout({ children, title, subtitle, headerActions }: AppLayou
       <div className="lg:ml-64">
         {/* Header */}
         <header className="bg-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-30">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-3">
+          <div className="px-3 sm:px-6 lg:px-8">
+            <div className="flex items-start justify-between py-3 sm:py-4 gap-3">
+              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                 <button 
                   onClick={() => setSidebarOpen(true)}
-                  className="p-2 text-slate-400 hover:text-white transition-colors lg:hidden"
+                  className="p-2 text-slate-400 hover:text-white transition-colors lg:hidden flex-shrink-0"
                 >
                   <Menu className="h-5 w-5" />
                 </button>
+                
+                {/* Desktop Title */}
                 <div className="hidden lg:block">
                   <h1 className="text-xl font-bold text-white">{title}</h1>
                   {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
                 </div>
-                <div className="lg:hidden">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg">
-                      <Package className="h-4 w-4 text-white" />
-                    </div>
-                    <span className="text-lg font-bold text-white">{title}</span>
+                
+                {/* Mobile Title */}
+                <div className="lg:hidden flex items-center space-x-2 min-w-0 flex-1">
+                  <div className="p-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex-shrink-0">
+                    <Package className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-base sm:text-lg font-bold text-white truncate block">{title}</span>
+                    {subtitle && <p className="text-xs text-slate-400 truncate hidden sm:block">{subtitle}</p>}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2 md:space-x-4">
-                {headerActions}
-                <Link href="/" className="text-slate-400 hover:text-white transition-colors text-sm hidden md:block">
+              
+              {/* Header Actions */}
+              <div className="flex items-start space-x-1 sm:space-x-2 md:space-x-4 flex-shrink-0">
+                <div className="flex items-start space-x-1 sm:space-x-2">
+                  {headerActions}
+                </div>
+                <Link href="/" className="text-slate-400 hover:text-white transition-colors text-sm hidden md:block mt-1">
                   Voltar ao início
                 </Link>
               </div>
             </div>
           </div>
+          
+          {/* Mobile Subtitle */}
+          {subtitle && (
+            <div className="px-3 pb-2 lg:hidden">
+              <p className="text-xs text-slate-400 truncate sm:hidden">{subtitle}</p>
+            </div>
+          )}
         </header>
 
         {/* Content */}

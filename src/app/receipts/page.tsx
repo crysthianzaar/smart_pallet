@@ -22,14 +22,14 @@ import {
 
 interface Receipt {
   id: string
-  pallet_id: string
-  manifest_id?: string
-  location_id: string
+  pallet_id?: string
+  manifest_id: string
   received_by: string
-  ai_confidence?: number
   status: 'ok' | 'alerta' | 'critico'
-  notes?: string
-  received_at?: string
+  observations?: string
+  received_at: string
+  display_name?: string
+  manifest_number?: string
 }
 
 interface ReceiptStats {
@@ -106,8 +106,9 @@ export default function ReceiptsPage() {
   }
 
   const filteredReceipts = receipts.filter(receipt => {
-    const matchesSearch = receipt.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         receipt.pallet_id.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = (receipt.display_name || receipt.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (receipt.pallet_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (receipt.manifest_number || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesFilter = filterStatus === 'all' || receipt.status === filterStatus
     return matchesSearch && matchesFilter
   })
@@ -254,7 +255,7 @@ export default function ReceiptsPage() {
                       
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-white">{receipt.id}</h3>
+                          <h3 className="font-semibold text-white">{receipt.display_name || receipt.id}</h3>
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             receipt.status === 'ok' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
                             receipt.status === 'alerta' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
@@ -262,20 +263,20 @@ export default function ReceiptsPage() {
                           }`}>
                             {getStatusLabel(receipt.status)}
                           </span>
-                          {receipt.ai_confidence && (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                              IA: {Math.round(receipt.ai_confidence)}%
-                            </span>
-                          )}
                         </div>
                         
                         <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-2">
-                          <span className="flex items-center">
-                            <Package className="h-4 w-4 mr-1" />
-                            Pallet: {receipt.pallet_id}
-                          </span>
-                          {receipt.manifest_id && (
-                            <span>Manifesto: {receipt.manifest_id}</span>
+                          {receipt.pallet_id && (
+                            <span className="flex items-center">
+                              <Package className="h-4 w-4 mr-1" />
+                              Pallet: {receipt.pallet_id}
+                            </span>
+                          )}
+                          {receipt.manifest_number && (
+                            <span className="flex items-center">
+                              <Truck className="h-4 w-4 mr-1" />
+                              Manifesto: {receipt.manifest_number}
+                            </span>
                           )}
                         </div>
                         
@@ -292,9 +293,9 @@ export default function ReceiptsPage() {
                           </span>
                         </div>
                         
-                        {receipt.notes && (
+                        {receipt.observations && (
                           <div className="text-xs text-slate-400 italic mt-2">
-                            {receipt.notes}
+                            {receipt.observations}
                           </div>
                         )}
                       </div>

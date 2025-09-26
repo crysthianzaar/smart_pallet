@@ -84,3 +84,39 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(message, 400);
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const palletId = searchParams.get('id');
+    
+    if (!palletId) {
+      return createErrorResponse('Pallet ID is required', 400);
+    }
+    
+    // Check if pallet exists
+    const pallet = await palletRepository.findById(palletId);
+    if (!pallet) {
+      return createErrorResponse('Pallet not found', 404);
+    }
+    
+    // Check if pallet can be deleted (only active pallets can be deleted)
+    if (pallet.status !== 'ativo') {
+      return createErrorResponse('Cannot delete pallet that is not in active status', 400);
+    }
+    
+    // Unlink QR tag before deleting pallet
+    if (pallet.qr_tag_id) {
+      await qrTagRepository.unlinkFromPallet(pallet.qr_tag_id);
+    }
+    
+    // Delete the pallet
+    await palletRepository.delete(palletId);
+    
+    return createApiResponse({ message: 'Pallet deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting pallet:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete pallet';
+    return createErrorResponse(message, 500);
+  }
+}

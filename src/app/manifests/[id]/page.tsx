@@ -426,7 +426,7 @@ export default function ManifestDetailsPage() {
             </h2>
             
             <div className="space-y-4">
-              {originLocation && (
+              {originLocation ? (
                 <div>
                   <p className="text-sm text-slate-400 mb-1">Origem</p>
                   <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-3">
@@ -439,13 +439,20 @@ export default function ManifestDetailsPage() {
                     )}
                   </div>
                 </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-slate-400 mb-1">Origem</p>
+                  <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-3">
+                    <p className="text-slate-500 italic">Informação de origem não disponível</p>
+                  </div>
+                </div>
               )}
               
               <div className="flex justify-center">
                 <ArrowRight className="h-6 w-6 text-slate-500" />
               </div>
               
-              {destinationLocation && (
+              {destinationLocation ? (
                 <div>
                   <p className="text-sm text-slate-400 mb-1">Destino</p>
                   <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-3">
@@ -456,6 +463,13 @@ export default function ManifestDetailsPage() {
                     {destinationLocation.city && destinationLocation.state && (
                       <p className="text-sm text-slate-400">{destinationLocation.city}/{destinationLocation.state}</p>
                     )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-slate-400 mb-1">Destino</p>
+                  <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-3">
+                    <p className="text-slate-500 italic">Informação de destino não disponível</p>
                   </div>
                 </div>
               )}
@@ -474,41 +488,34 @@ export default function ManifestDetailsPage() {
           
           {pallets.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pallets.map(({ pallet, manifestPallet }) => (
-                <div key={pallet.id} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
+              {pallets.map((item: any) => (
+                <div key={item.id || item.pallet?.id} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center">
                       <Package className="h-4 w-4 text-purple-400 mr-2" />
-                      <span className="text-white font-medium text-sm">{pallet.id}</span>
+                      <span className="text-white font-medium text-sm">{item.id || item.pallet?.id}</span>
                     </div>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      pallet.status === 'selado' ? 'bg-green-500/20 text-green-400' :
-                      pallet.status === 'em_transporte' ? 'bg-blue-500/20 text-blue-400' :
-                      pallet.status === 'recebido' ? 'bg-purple-500/20 text-purple-400' :
+                      (item.status || item.pallet?.status) === 'ativo' ? 'bg-blue-500/20 text-blue-400' :
+                      (item.status || item.pallet?.status) === 'em_manifesto' ? 'bg-purple-500/20 text-purple-400' :
+                      (item.status || item.pallet?.status) === 'em_transito' ? 'bg-yellow-500/20 text-yellow-400' :
+                      (item.status || item.pallet?.status) === 'recebido' ? 'bg-green-500/20 text-green-400' :
                       'bg-slate-500/20 text-slate-400'
                     }`}>
-                      {pallet.status}
+                      {item.status || item.pallet?.status}
                     </span>
                   </div>
                   
-                  <div className="space-y-2 text-xs text-slate-400">
-                    <p className="flex items-center">
-                      <QrCode className="h-3 w-3 mr-1" />
-                      QR: {pallet.qr_tag_id}
-                    </p>
-                    
-                    {pallet.ai_confidence && (
-                      <p>IA: {Math.round(pallet.ai_confidence)}% confiança</p>
-                    )}
-                    
-                    {pallet.requires_manual_review && (
-                      <p className="text-yellow-400">⚠️ Requer revisão manual</p>
-                    )}
-                    
-                    <p>Criado: {new Date(pallet.created_at).toLocaleDateString('pt-BR')}</p>
-                    
-                    {manifestPallet.loaded_at && (
-                      <p>Carregado: {new Date(manifestPallet.loaded_at).toLocaleString('pt-BR')}</p>
+                  <div className="space-y-2 text-sm text-slate-300">
+                    <div className="flex items-center">
+                      <QrCode className="h-4 w-4 text-cyan-400 mr-2" />
+                      <span className="font-mono">{item.qr_code || item.pallet?.qr_code || 'N/A'}</span>
+                    </div>
+                    {(item.added_at || item.manifestPallet?.created_at) && (
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-slate-400 mr-2" />
+                        <span>Adicionado: {new Date(item.added_at || item.manifestPallet?.created_at).toLocaleDateString('pt-BR')}</span>
+                      </div>
                     )}
                   </div>
                 </div>
