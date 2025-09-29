@@ -38,6 +38,8 @@ CREATE TABLE skus (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     unit VARCHAR(50) NOT NULL,
+    weight DECIMAL(10,3),
+    dimensions VARCHAR(100),
     unit_price DECIMAL(10,2),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW(),

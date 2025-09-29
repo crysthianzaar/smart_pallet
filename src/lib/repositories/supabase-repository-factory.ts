@@ -86,23 +86,32 @@ class SupabaseSkuRepository extends SupabaseBaseRepository<Sku, SkuCreate, SkuUp
     return data as Sku[]
   }
 
-  async findByCategory(category: string): Promise<Sku[]> {
-    const { data, error } = await this.client
-      .from('skus')
-      .select('*')
-      .eq('category', category)
-      .eq('status', 'active')
-      .order('name')
-
-    if (error) {
-      throw new Error(`Error finding SKUs by category: ${error.message}`)
-    }
-
-    return data as Sku[]
-  }
-
   async findByStatus(status: 'active' | 'inactive'): Promise<Sku[]> {
     return this.findBy('status', status)
+  }
+
+  async isInUse(skuId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from('pallet_items')
+      .select('id')
+      .eq('sku_id', skuId)
+      .limit(1)
+
+    if (error) {
+      throw new Error(`Error checking if SKU is in use: ${error.message}`)
+    }
+
+    return data && data.length > 0
+  }
+
+  async delete(id: string): Promise<boolean> {
+    // Check if SKU is in use before deleting
+    const inUse = await this.isInUse(id)
+    if (inUse) {
+      throw new Error('Cannot delete SKU: it is currently being used in pallet items')
+    }
+
+    return super.delete(id)
   }
 }
 

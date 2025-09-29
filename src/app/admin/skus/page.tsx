@@ -21,7 +21,7 @@ interface Sku {
   unit: string;
   weight?: number;
   dimensions?: string;
-  category?: string;
+  unit_price?: number;
   status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
@@ -43,7 +43,6 @@ export default function SkusPage() {
     unit: 'un',
     weight: '',
     dimensions: '',
-    category: '',
     status: 'active' as 'active' | 'inactive'
   });
 
@@ -56,8 +55,7 @@ export default function SkusPage() {
       const filtered = skus.filter(sku => 
         sku.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sku.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sku.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sku.category?.toLowerCase().includes(searchTerm.toLowerCase())
+        sku.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredSkus(filtered);
     } else {
@@ -120,7 +118,6 @@ export default function SkusPage() {
       unit: sku.unit,
       weight: sku.weight?.toString() || '',
       dimensions: sku.dimensions || '',
-      category: sku.category || '',
       status: sku.status
     });
     setShowForm(true);
@@ -134,7 +131,10 @@ export default function SkusPage() {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Failed to delete SKU');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete SKU');
+      }
 
       await fetchSkus();
     } catch (err) {
@@ -150,7 +150,6 @@ export default function SkusPage() {
       unit: 'un',
       weight: '',
       dimensions: '',
-      category: '',
       status: 'active'
     });
     setEditingSku(null);
@@ -255,6 +254,7 @@ export default function SkusPage() {
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    required
                   >
                     <option value="un">Unidade</option>
                     <option value="kg">Quilograma</option>
@@ -275,6 +275,7 @@ export default function SkusPage() {
                   <input
                     type="number"
                     step="0.001"
+                    min="0"
                     value={formData.weight}
                     onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
@@ -291,17 +292,6 @@ export default function SkusPage() {
                   placeholder="Ex: 10x20x30 cm"
                   value={formData.dimensions}
                   onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Categoria
-                </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
                 />
               </div>
@@ -383,11 +373,6 @@ export default function SkusPage() {
                   )}
                   {sku.dimensions && (
                     <div>Dimensões: {sku.dimensions}</div>
-                  )}
-                  {sku.category && (
-                    <div className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">
-                      {sku.category}
-                    </div>
                   )}
                 </div>
               </div>

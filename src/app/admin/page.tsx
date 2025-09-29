@@ -143,53 +143,6 @@ export default function AdminPage() {
       title="Configurações" 
       subtitle="Configuração e gerenciamento do sistema"
     >
-      {/* Database Actions */}
-      <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 mb-8">
-        <div className="mb-6">
-          <h2 className="text-lg font-bold text-white mb-2">Banco de Dados</h2>
-          <p className="text-sm text-slate-400">Ações de manutenção e configuração</p>
-        </div>
-        
-        <div className="flex flex-wrap gap-4 mb-4">
-          <button
-            onClick={handleSeedDatabase}
-            disabled={loading}
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-400 text-white font-medium rounded-lg hover:from-green-600 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            <Database className="h-4 w-4 mr-2" />
-            {loading ? 'Populando...' : 'Popular Banco'}
-          </button>
-          
-          <button
-            onClick={handleResetDatabase}
-            disabled={loading}
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-400 text-white font-medium rounded-lg hover:from-red-600 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            <Database className="h-4 w-4 mr-2" />
-            {loading ? 'Limpando...' : 'Limpar Banco'}
-          </button>
-          
-          <button
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:from-blue-600 hover:to-cyan-500 transition-all duration-200"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Exportar Dados
-          </button>
-          
-          <button
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-400 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-500 transition-all duration-200"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Importar Dados
-          </button>
-        </div>
-        
-        {message && (
-          <div className="p-3 bg-slate-700/50 border border-slate-600/50 rounded-lg">
-            <p className="text-sm text-white">{message}</p>
-          </div>
-        )}
-      </div>
 
       {/* Admin Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

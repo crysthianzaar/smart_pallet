@@ -61,6 +61,12 @@ export async function DELETE(
     return createApiResponse({ message: 'SKU deleted successfully' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete SKU';
+    
+    // Check if it's a foreign key constraint error and provide a more user-friendly message
+    if (message.includes('Cannot delete SKU: it is currently being used in pallet items')) {
+      return createErrorResponse('Cannot delete SKU: it is currently being used in pallet items. Remove it from all pallets first.', 400);
+    }
+    
     return createErrorResponse(message, 500);
   }
 }
