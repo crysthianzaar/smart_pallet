@@ -9,14 +9,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-    const category = searchParams.get('category');
     const status = searchParams.get('status') as 'active' | 'inactive' | null;
     
     let skus;
     if (search) {
       skus = await skuRepository.search(search);
-    } else if (category) {
-      skus = await skuRepository.findByCategory(category);
     } else if (status) {
       skus = await skuRepository.findByStatus(status);
     } else {
