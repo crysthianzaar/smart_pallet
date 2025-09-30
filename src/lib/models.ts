@@ -97,6 +97,56 @@ export const QrTagCreateSchema = QrTagSchema.omit({
 
 export const QrTagUpdateSchema = QrTagCreateSchema.partial();
 
+// Vision Analysis Models
+export const VisionAnalysisLayerSchema = z.object({
+  layer_index: z.number().int().min(1),
+  rows: z.number().int().min(1).optional(),
+  columns: z.number().int().min(1).optional(),
+  count: z.number().int().min(0),
+});
+
+export const VisionAnalysisDebugSchema = z.object({
+  grid_detected: z.boolean().optional(),
+  rows_detected: z.number().int().min(1).optional(),
+  columns_detected: z.number().int().min(1).optional(),
+  bounding_boxes_detected: z.number().int().min(0).optional(),
+  contours_detected: z.number().int().min(0).optional(),
+  estimated_item_volume_mm3: z.number().optional(),
+  estimated_pallet_volume_mm3: z.number().optional(),
+  detection_notes: z.string().optional(),
+});
+
+export const VisionAnalysisSchema = z.object({
+  id: z.string(),
+  pallet_id: z.string(),
+  item_count: z.number().int().min(0),
+  confidence: z.number().min(0).max(1),
+  item_count_by_layer: z.array(VisionAnalysisLayerSchema).optional(),
+  rationale: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
+  debug: VisionAnalysisDebugSchema.optional(),
+  created_at: z.string().datetime().optional(),
+});
+
+export const VisionAnalysisCreateSchema = VisionAnalysisSchema.omit({ 
+  id: true, 
+  created_at: true 
+});
+
+// Selected SKU Models
+export const SelectedSkuSchema = z.object({
+  id: z.string(),
+  pallet_id: z.string(),
+  sku_id: z.string(),
+  expected_quantity: z.number().int().min(0),
+  created_at: z.string().datetime().optional(),
+});
+
+export const SelectedSkuCreateSchema = SelectedSkuSchema.omit({ 
+  id: true, 
+  created_at: true 
+});
+
 // Pallet Models
 export const PalletSchema = z.object({
   id: z.string(),
@@ -107,6 +157,9 @@ export const PalletSchema = z.object({
   status: PalletStatus.default('ativo'),
   ai_confidence: z.number().min(0).max(100).optional(),
   requires_manual_review: z.boolean().default(false),
+  estimated_item_count: z.number().int().min(0).optional(),
+  vision_confidence: z.number().min(0).max(1).optional(),
+  total_expected_items: z.number().int().min(0).optional(),
   // observations: z.string().optional(), // Temporarily removed until DB is updated
   sealed_at: z.string().datetime().optional(),
   sealed_by: z.string().optional(),
@@ -122,6 +175,43 @@ export const PalletCreateSchema = PalletSchema.omit({
 });
 
 export const PalletUpdateSchema = PalletCreateSchema.partial();
+
+// Enhanced Pallet Creation Schema with all related data
+export const PalletCreateWithDetailsSchema = z.object({
+  // Basic pallet data
+  qr_tag_id: z.string(),
+  contract_id: z.string(),
+  origin_location_id: z.string(),
+  destination_location_id: z.string().optional(),
+  
+  // Selected SKUs for this pallet
+  selected_skus: z.array(z.object({
+    sku_id: z.string(),
+    expected_quantity: z.number().int().min(0),
+  })).optional(),
+  
+  // Photos data
+  photos: z.array(z.object({
+    photo_type: PhotoType,
+    stage: PhotoStage,
+    file_path: z.string(),
+  })).optional(),
+  
+  // Vision analysis metadata for processing
+  vision_metadata: z.object({
+    item_count: z.number().int().default(0),
+    confidence: z.number().min(0).max(1).default(0),
+    item_count_by_layer: z.array(z.object({
+      layer_index: z.number().int(),
+      rows: z.number().int().optional(),
+      columns: z.number().int().optional(),
+      count: z.number().int()
+    })).optional(),
+    rationale: z.string().optional(),
+    suggestions: z.array(z.string()).optional(),
+    debug: z.record(z.any()).optional(),
+  }).optional(),
+});
 
 // Pallet Photo Models
 export const PalletPhotoSchema = z.object({
@@ -281,6 +371,7 @@ export type QrTagUpdate = z.infer<typeof QrTagUpdateSchema>;
 export type Pallet = z.infer<typeof PalletSchema>;
 export type PalletCreate = z.infer<typeof PalletCreateSchema>;
 export type PalletUpdate = z.infer<typeof PalletUpdateSchema>;
+export type PalletCreateWithDetails = z.infer<typeof PalletCreateWithDetailsSchema>;
 
 export type PalletPhoto = z.infer<typeof PalletPhotoSchema>;
 export type PalletPhotoCreate = z.infer<typeof PalletPhotoCreateSchema>;
@@ -305,3 +396,11 @@ export type ComparisonCreate = z.infer<typeof ComparisonCreateSchema>;
 
 export type AuditLog = z.infer<typeof AuditLogSchema>;
 export type AuditLogCreate = z.infer<typeof AuditLogCreateSchema>;
+
+export type VisionAnalysisLayer = z.infer<typeof VisionAnalysisLayerSchema>;
+export type VisionAnalysisDebug = z.infer<typeof VisionAnalysisDebugSchema>;
+export type VisionAnalysis = z.infer<typeof VisionAnalysisSchema>;
+export type VisionAnalysisCreate = z.infer<typeof VisionAnalysisCreateSchema>;
+
+export type SelectedSku = z.infer<typeof SelectedSkuSchema>;
+export type SelectedSkuCreate = z.infer<typeof SelectedSkuCreateSchema>;

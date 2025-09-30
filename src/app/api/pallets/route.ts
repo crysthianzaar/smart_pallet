@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createApiResponse, createErrorResponse, MVP_USER_ID } from '../../../lib/api-utils';
 import { RepositoryFactory } from '../../../lib/repositories';
-import { PalletCreateSchema } from '../../../lib/models';
+import { PalletCreateSchema, PalletCreateWithDetailsSchema } from '../../../lib/models';
 
 const palletRepository = RepositoryFactory.getPalletRepository();
 const qrTagRepository = RepositoryFactory.getQrTagRepository();
@@ -11,38 +11,121 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Raw request body:', body);
     
-    const validatedData = PalletCreateSchema.parse(body);
-    console.log('Validated data:', validatedData);
+    // Check if this is a detailed creation (has selected_skus, photos, or vision_metadata)
+    const isDetailedCreation = (body.selected_skus && body.selected_skus.length > 0) || 
+                              (body.photos && body.photos.length > 0) || 
+                              body.vision_metadata;
+    console.log('isDetailedCreation:', isDetailedCreation, {
+      has_selected_skus: !!body.selected_skus,
+      selected_skus_length: body.selected_skus?.length || 0,
+      has_photos: !!body.photos,
+      photos_length: body.photos?.length || 0,
+      has_vision_metadata: !!body.vision_metadata
+    });
     
-    // Check if QR tag exists and is available
-    const qrTag = await qrTagRepository.findById(validatedData.qr_tag_id);
-    if (!qrTag) {
-      return createErrorResponse('QR tag not found', 404);
-    }
-    
-    if (qrTag.status === 'vinculado') {
-      // If already linked, return the existing pallet
-      const existingPallet = await palletRepository.findByQrTag(qrTag.id);
-      if (existingPallet) {
-        return createApiResponse(existingPallet);
+    if (isDetailedCreation) {
+      // Use enhanced creation schema
+      const validatedData = PalletCreateWithDetailsSchema.parse(body);
+      console.log('Validated detailed data:', {
+        ...validatedData,
+        photos: validatedData.photos?.map(p => ({
+          photo_type: p.photo_type,
+          stage: p.stage,
+          file_path_length: p.file_path.length,
+          is_base64: p.file_path.startsWith('data:image/')
+        })),
+        vision_metadata: validatedData.vision_metadata ? {
+          item_count: validatedData.vision_metadata.item_count,
+          confidence: validatedData.vision_metadata.confidence,
+          has_rationale: !!validatedData.vision_metadata.rationale
+        } : null
+      });
+      
+      // Check if QR tag exists and is available
+      const qrTag = await qrTagRepository.findById(validatedData.qr_tag_id);
+      if (!qrTag) {
+        return createErrorResponse('QR tag not found', 404);
       }
+      
+      if (qrTag.status === 'vinculado') {
+        // If already linked, return the existing pallet
+        const existingPallet = await palletRepository.findByQrTag(qrTag.id);
+        if (existingPallet) {
+          return createApiResponse(existingPallet);
+        }
+      }
+      
+      // Create pallet with all details
+      const result = await palletRepository.createWithDetails(validatedData, MVP_USER_ID);
+      
+      // Link the QR tag to the pallet
+      await qrTagRepository.linkToPallet(qrTag.id, result.pallet.id);
+      
+      // If vision metadata is provided, save vision analysis
+      if (validatedData.vision_metadata) {
+        console.log('Saving vision analysis for pallet:', result.pallet.id);
+        try {
+          const visionAnalysisData = {
+            pallet_id: result.pallet.id,
+            item_count: validatedData.vision_metadata.item_count || 0,
+            confidence: validatedData.vision_metadata.confidence || 0,
+            item_count_by_layer: validatedData.vision_metadata.item_count_by_layer || undefined,
+            rationale: validatedData.vision_metadata.rationale || undefined,
+            suggestions: validatedData.vision_metadata.suggestions || undefined,
+            debug: validatedData.vision_metadata.debug || undefined
+          };
+          
+          await palletRepository.saveVisionAnalysis(visionAnalysisData);
+          console.log('✅ Vision analysis saved successfully');
+          
+          // Update pallet with vision data
+          await palletRepository.update(result.pallet.id, {
+            estimated_item_count: visionAnalysisData.item_count,
+            vision_confidence: visionAnalysisData.confidence
+          });
+          console.log('✅ Pallet updated with vision data');
+          
+        } catch (visionError) {
+          console.error('❌ Error saving vision analysis:', visionError);
+          // Don't fail the entire request, just log the error
+        }
+      }
+      
+      return createApiResponse(result, 201);
+    } else {
+      // Use simple creation schema
+      const validatedData = PalletCreateSchema.parse(body);
+      console.log('Validated simple data:', validatedData);
+      
+      // Check if QR tag exists and is available
+      const qrTag = await qrTagRepository.findById(validatedData.qr_tag_id);
+      if (!qrTag) {
+        return createErrorResponse('QR tag not found', 404);
+      }
+      
+      if (qrTag.status === 'vinculado') {
+        // If already linked, return the existing pallet
+        const existingPallet = await palletRepository.findByQrTag(qrTag.id);
+        if (existingPallet) {
+          return createApiResponse(existingPallet);
+        }
+      }
+      
+      // Create the pallet
+      const palletData = {
+        ...validatedData,
+        created_by: MVP_USER_ID,
+      };
+      
+      console.log('Final pallet data before create:', palletData);
+      
+      const pallet = await palletRepository.create(palletData);
+      
+      // Link the QR tag to the pallet
+      await qrTagRepository.linkToPallet(qrTag.id, pallet.id);
+      
+      return createApiResponse(pallet, 201);
     }
-    
-    // Create the pallet
-    const palletData = {
-      ...validatedData,
-      created_by: MVP_USER_ID,
-    };
-    
-    console.log('Final pallet data before create:', palletData);
-    console.log('Data types:', Object.entries(palletData).map(([key, value]) => [key, typeof value, value]));
-    
-    const pallet = await palletRepository.create(palletData);
-    
-    // Link the QR tag to the pallet
-    await qrTagRepository.linkToPallet(qrTag.id, pallet.id);
-    
-    return createApiResponse(pallet, 201);
   } catch (error) {
     console.error('Detailed error:', error);
     const message = error instanceof Error ? error.message : 'Failed to create pallet';

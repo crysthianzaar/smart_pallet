@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AppLayout } from '../../../components/layout/AppLayout'
+import { PalletPhotosGallery } from '../../../components/PalletPhotosGallery'
 import { 
   ArrowLeft, 
   Package, 
@@ -18,7 +19,13 @@ import {
   Share,
   FileText,
   Tag,
-  Building
+  Building,
+  Brain,
+  Layers,
+  Grid3X3,
+  Zap,
+  Info,
+  Lightbulb
 } from 'lucide-react'
 
 interface PalletItem {
@@ -31,6 +38,10 @@ interface PalletItem {
   unit_price?: number;
   total_value?: number;
   ai_confidence?: number;
+  unit?: string;
+  weight?: number;
+  dimensions?: string;
+  description?: string;
 }
 
 interface PalletPhoto {
@@ -60,9 +71,33 @@ interface PalletDetails {
     created_by: string;
     created_at: string;
     updated_at: string;
+    estimated_item_count?: number;
+    vision_confidence?: number;
+    selected_skus?: any[];
+    total_expected_items?: number;
   };
   items: PalletItem[];
   photos: PalletPhoto[];
+  selectedSkus?: any[];
+  visionAnalysis?: {
+    item_count: number;
+    confidence: number;
+    item_count_by_layer?: Array<{
+      layer_index: number;
+      rows?: number;
+      columns?: number;
+      count: number;
+    }>;
+    rationale?: string;
+    suggestions?: string[];
+    debug?: {
+      grid_detected?: boolean;
+      rows_detected?: number;
+      columns_detected?: number;
+      bounding_boxes_detected?: number;
+      contours_detected?: number;
+    };
+  };
 }
 
 export default function PalletDetailsPage() {
@@ -157,7 +192,7 @@ export default function PalletDetailsPage() {
     )
   }
 
-  const { pallet, items, photos } = palletDetails
+  const { pallet, items, photos, visionAnalysis, selectedSkus } = palletDetails
   const totalItems = items.reduce((sum, item) => sum + item.quantity_origin, 0)
   const totalValue = items.reduce((sum, item) => sum + (item.total_value || 0), 0)
 
@@ -257,7 +292,7 @@ export default function PalletDetailsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Total de Itens</p>
-                <p className="text-2xl font-bold text-white">{totalItems}</p>
+                <p className="text-2xl font-bold text-white">{pallet.estimated_item_count || 0}</p>
               </div>
               <Package className="h-8 w-8 text-blue-400" />
             </div>
@@ -266,8 +301,8 @@ export default function PalletDetailsPage() {
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">SKUs Diferentes</p>
-                <p className="text-2xl font-bold text-white">{items.length}</p>
+                <p className="text-slate-400 text-sm">SKUs Selecionados</p>
+                <p className="text-2xl font-bold text-white">{selectedSkus?.length || 0}</p>
               </div>
               <Tag className="h-8 w-8 text-purple-400" />
             </div>
@@ -282,36 +317,15 @@ export default function PalletDetailsPage() {
               <Camera className="h-8 w-8 text-green-400" />
             </div>
           </div>
-          
-          {pallet.ai_confidence && (
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Confiança IA</p>
-                  <p className={`text-2xl font-bold ${
-                    pallet.ai_confidence >= 85 ? 'text-green-400' :
-                    pallet.ai_confidence >= 65 ? 'text-yellow-400' :
-                    'text-red-400'
-                  }`}>
-                    {pallet.ai_confidence}%
-                  </p>
-                </div>
-                <CheckCircle className={`h-8 w-8 ${
-                  pallet.ai_confidence >= 85 ? 'text-green-400' :
-                  pallet.ai_confidence >= 65 ? 'text-yellow-400' :
-                  'text-red-400'
-                }`} />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Tabs */}
         <div className="border-b border-slate-700/50">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto">
             {[
               { id: 'overview', name: 'Visão Geral', icon: Eye },
               { id: 'items', name: 'Itens', icon: Package },
+              { id: 'vision', name: 'Análise IA', icon: Brain },
               { id: 'photos', name: 'Fotos', icon: Camera },
             ].map((tab) => {
               const Icon = tab.icon
@@ -362,10 +376,6 @@ export default function PalletDetailsPage() {
                     <p className="text-white font-medium">{pallet.origin_name || 'Não informado'}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-sm">Local de Destino</p>
-                    <p className="text-white font-medium">{pallet.destination_name || 'Não definido'}</p>
-                  </div>
-                  <div>
                     <p className="text-slate-400 text-sm">Criado por</p>
                     <p className="text-white font-medium">{pallet.created_by}</p>
                   </div>
@@ -391,7 +401,7 @@ export default function PalletDetailsPage() {
             </div>
 
             {/* Análise da IA */}
-            {pallet.ai_confidence && (
+            {(pallet.vision_confidence || pallet.estimated_item_count) && (
               <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-400" />
@@ -400,16 +410,16 @@ export default function PalletDetailsPage() {
                 <div className="space-y-4">
                   <div className="text-center">
                     <div className={`text-4xl font-bold mb-2 ${
-                      pallet.ai_confidence >= 85 ? 'text-green-400' :
-                      pallet.ai_confidence >= 65 ? 'text-yellow-400' :
+                      (pallet.vision_confidence || 0) >= 0.85 ? 'text-green-400' :
+                      (pallet.vision_confidence || 0) >= 0.65 ? 'text-yellow-400' :
                       'text-red-400'
                     }`}>
-                      {pallet.ai_confidence}%
+                      {Math.round((pallet.vision_confidence || 0) * 100)}%
                     </div>
                     <p className="text-slate-400">Confiança Geral</p>
                   </div>
 
-                  {pallet.ai_confidence < 65 && (
+                  {(pallet.vision_confidence || 0) < 0.65 && (
                     <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
                       <div className="flex items-center">
                         <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
@@ -427,46 +437,288 @@ export default function PalletDetailsPage() {
         )}
 
         {activeTab === 'items' && (
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Package className="h-5 w-5 text-blue-400" />
-              Itens do Pallet ({items.length})
-            </h3>
-            {items.length > 0 ? (
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <div key={item.id} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                      <div className="md:col-span-2">
-                        <h4 className="font-medium text-white">{item.sku_name}</h4>
-                        <p className="text-sm text-slate-400 font-mono">{item.sku_code}</p>
+          <div className="space-y-6">
+            {/* SKUs Selecionados */}
+            {pallet.selected_skus && pallet.selected_skus.length > 0 && (
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-cyan-400" />
+                  SKUs Selecionados ({pallet.selected_skus.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pallet.selected_skus.map((sku: any, index: number) => (
+                    <div key={index} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-medium text-white">{sku.name}</h4>
+                          <p className="text-sm text-slate-400 font-mono">{sku.code}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-slate-400">Esperado</p>
+                          <p className="text-lg font-bold text-cyan-400">{sku.expected_quantity || '-'}</p>
+                        </div>
                       </div>
                       
+                      {sku.description && (
+                        <p className="text-xs text-slate-300 mb-2">{sku.description}</p>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        {sku.dimensions && (
+                          <div>
+                            <p className="text-slate-400">Dimensões</p>
+                            <p className="text-slate-300">{sku.dimensions}</p>
+                          </div>
+                        )}
+                        {sku.weight && (
+                          <div>
+                            <p className="text-slate-400">Peso</p>
+                            <p className="text-slate-300">{sku.weight}kg</p>
+                          </div>
+                        )}
+                        {sku.unit && (
+                          <div>
+                            <p className="text-slate-400">Unidade</p>
+                            <p className="text-slate-300">{sku.unit}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Itens Detectados */}
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-400" />
+                Itens Selecionados ({selectedSkus?.length || 0})
+              </h3>
+              {selectedSkus && selectedSkus.length > 0 ? (
+                <div className="space-y-4">
+                  {selectedSkus.map((sku) => (
+                    <div key={sku.id} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white">{sku.sku_name}</h4>
+                          <p className="text-sm text-slate-400 font-mono">{sku.sku_code}</p>
+                          {sku.sku_description && (
+                            <p className="text-xs text-slate-300 mt-1">{sku.sku_description}</p>
+                          )}
+                        </div>
+                        
+                        {sku.sku_dimensions && (
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-slate-300">{sku.sku_dimensions}</p>
+                            <p className="text-xs text-slate-400">Dimensões</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Package className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400">Nenhum SKU selecionado para este pallet</p>
+                  <p className="text-slate-500 text-sm mt-2">
+                    Os SKUs são selecionados durante a criação do pallet
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Resumo Comparativo */}
+            {pallet.selected_skus && pallet.selected_skus.length > 0 && items.length > 0 && (
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  Resumo Comparativo
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-cyan-400 mb-2">
+                      {pallet.total_expected_items || pallet.selected_skus.reduce((sum: number, sku: any) => sum + (sku.expected_quantity || 0), 0)}
+                    </div>
+                    <p className="text-slate-400">Itens Esperados</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-400 mb-2">
+                      {totalItems}
+                    </div>
+                    <p className="text-slate-400">Itens Detectados</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold mb-2 ${
+                      totalItems === (pallet.total_expected_items || 0) ? 'text-green-400' :
+                      Math.abs(totalItems - (pallet.total_expected_items || 0)) <= 2 ? 'text-yellow-400' :
+                      'text-red-400'
+                    }`}>
+                      {totalItems - (pallet.total_expected_items || 0) > 0 ? '+' : ''}{totalItems - (pallet.total_expected_items || 0)}
+                    </div>
+                    <p className="text-slate-400">Diferença</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'vision' && (
+          <div className="space-y-6">
+            {/* Análise de Visão Computacional */}
+            {palletDetails.visionAnalysis ? (
+              <>
+                {/* Resultado Principal */}
+                <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-purple-400" />
+                    Análise de Visão Computacional
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-400 mb-2">
+                        {palletDetails.visionAnalysis.item_count}
+                      </div>
+                      <p className="text-slate-400">Itens Detectados</p>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className={`text-3xl font-bold mb-2 ${
+                        palletDetails.visionAnalysis.confidence >= 0.8 ? 'text-green-400' :
+                        palletDetails.visionAnalysis.confidence >= 0.6 ? 'text-yellow-400' :
+                        'text-red-400'
+                      }`}>
+                        {(palletDetails.visionAnalysis.confidence * 100).toFixed(0)}%
+                      </div>
+                      <p className="text-slate-400">Confiança</p>
+                    </div>
+                    
+                    {palletDetails.visionAnalysis.debug?.grid_detected && (
                       <div className="text-center">
-                        <p className="text-lg font-bold text-white">{item.quantity_origin}</p>
-                        <p className="text-xs text-slate-400">Quantidade</p>
+                        <div className="text-3xl font-bold text-blue-400 mb-2">
+                          <Grid3X3 className="h-8 w-8 mx-auto" />
+                        </div>
+                        <p className="text-slate-400">Grade Detectada</p>
                       </div>
+                    )}
+                  </div>
+
+                  {palletDetails.visionAnalysis.rationale && (
+                    <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 mb-6">
+                      <h4 className="font-medium text-white mb-2 flex items-center gap-2">
+                        <Info className="h-4 w-4 text-blue-400" />
+                        Análise Detalhada
+                      </h4>
+                      <p className="text-slate-300 text-sm">{palletDetails.visionAnalysis.rationale}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Contagem por Camadas */}
+                {palletDetails.visionAnalysis.item_count_by_layer && palletDetails.visionAnalysis.item_count_by_layer.length > 0 && (
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <Layers className="h-5 w-5 text-blue-400" />
+                      Contagem por Camadas
+                    </h3>
+                    <div className="space-y-3">
+                      {palletDetails.visionAnalysis.item_count_by_layer.map((layer) => (
+                        <div key={layer.layer_index} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-white font-medium">Camada {layer.layer_index}</span>
+                            <span className="text-xl font-bold text-white">{layer.count} itens</span>
+                          </div>
+                          {layer.rows && layer.columns && (
+                            <div className="flex items-center gap-4 text-sm text-slate-300">
+                              <span className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-blue-400 rounded"></div>
+                                {layer.rows} linhas
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-400 rounded"></div>
+                                {layer.columns} colunas
+                              </span>
+                              <span className="text-slate-400">
+                                ({layer.rows} × {layer.columns} = {layer.count})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Métodos de Detecção */}
+                {palletDetails.visionAnalysis.debug && (
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-yellow-400" />
+                      Métodos de Detecção
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {palletDetails.visionAnalysis.debug.bounding_boxes_detected && (
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-blue-400 mb-2">
+                            {palletDetails.visionAnalysis.debug.bounding_boxes_detected}
+                          </div>
+                          <p className="text-slate-400 text-sm">Bounding Boxes</p>
+                        </div>
+                      )}
                       
-                      {item.ai_confidence && (
-                        <div className="text-center">
-                          <p className={`text-lg font-bold ${
-                            item.ai_confidence >= 85 ? 'text-green-400' :
-                            item.ai_confidence >= 65 ? 'text-yellow-400' :
-                            'text-red-400'
-                          }`}>
-                            {item.ai_confidence}%
-                          </p>
-                          <p className="text-xs text-slate-400">Confiança IA</p>
+                      {palletDetails.visionAnalysis.debug.contours_detected && (
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-green-400 mb-2">
+                            {palletDetails.visionAnalysis.debug.contours_detected}
+                          </div>
+                          <p className="text-slate-400 text-sm">Contornos</p>
+                        </div>
+                      )}
+                      
+                      {palletDetails.visionAnalysis.debug.rows_detected && palletDetails.visionAnalysis.debug.columns_detected && (
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-purple-400 mb-2">
+                            {palletDetails.visionAnalysis.debug.rows_detected}×{palletDetails.visionAnalysis.debug.columns_detected}
+                          </div>
+                          <p className="text-slate-400 text-sm">Grade Detectada</p>
                         </div>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Sugestões */}
+                {palletDetails.visionAnalysis.suggestions && palletDetails.visionAnalysis.suggestions.length > 0 && (
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <Lightbulb className="h-5 w-5 text-yellow-400" />
+                      Sugestões de Melhoria
+                    </h3>
+                    <div className="space-y-2">
+                      {palletDetails.visionAnalysis.suggestions.map((suggestion, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-slate-300 text-sm">{suggestion}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">Nenhum item cadastrado neste pallet</p>
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+                <div className="text-center py-12">
+                  <Brain className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400">Nenhuma análise de visão computacional disponível</p>
+                  <p className="text-slate-500 text-sm mt-2">
+                    A análise de IA será executada automaticamente durante a criação do pallet
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -478,34 +730,7 @@ export default function PalletDetailsPage() {
               <Camera className="h-5 w-5 text-green-400" />
               Fotos do Pallet ({photos.length})
             </h3>
-            {photos.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
-                    <div className="aspect-square bg-slate-600/50 rounded-lg mb-3 flex items-center justify-center">
-                      <Camera className="h-12 w-12 text-slate-400" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-white capitalize">
-                        {photo.photo_type} - {photo.stage}
-                      </p>
-                      <p className="text-xs text-slate-400 mb-3">
-                        {new Date(photo.uploaded_at).toLocaleString('pt-BR')}
-                      </p>
-                      <button className="inline-flex items-center px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors text-sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver Foto
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Camera className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">Nenhuma foto capturada para este pallet</p>
-              </div>
-            )}
+            <PalletPhotosGallery photos={photos} palletId={pallet.id} />
           </div>
         )}
       </div>

@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '../../../components/layout/AppLayout'
+import { useVisionAnalysis } from '../../../hooks/useVisionAnalysis'
+import { VisionAnalysisResults } from '../../../components/VisionAnalysisResults'
 import { 
   Camera, 
   QrCode, 
@@ -18,7 +20,8 @@ import {
   X,
   Eye,
   Search,
-  ChevronDown
+  ChevronDown,
+  Brain
 } from 'lucide-react'
 
 interface Contract {
@@ -46,6 +49,18 @@ interface Location {
   type: string
 }
 
+interface Sku {
+  id: string
+  code: string
+  name: string
+  description?: string
+  unit: string
+  weight?: number
+  dimensions?: string
+  status: 'active' | 'inactive'
+}
+
+
 interface PalletPhoto {
   id: string
   file: File | null
@@ -56,13 +71,14 @@ interface PalletPhoto {
 export default function NewPalletPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1) // 1: Info, 2: QR Tag, 3: Photos, 4: Manifest
+  const [step, setStep] = useState(1) // 1: Info, 2: QR Tag, 3: Photos, 4: SKUs, 5: Vision Analysis
   
   // Data states
   const [contracts, setContracts] = useState<Contract[]>([])
   const [availableTags, setAvailableTags] = useState<QrTag[]>([])
   const [manifests, setManifests] = useState<Manifest[]>([])
   const [locations, setLocations] = useState<Location[]>([])
+  const [skus, setSkus] = useState<Sku[]>([])
   const [loadingContracts, setLoadingContracts] = useState(true)
   const [tagSearchTerm, setTagSearchTerm] = useState('')
   const [showTagDropdown, setShowTagDropdown] = useState(false)
@@ -83,13 +99,23 @@ export default function NewPalletPage() {
     { id: '3', file: null, preview: '', uploaded: false }
   ])
 
+  // SKU selection state
+  const [selectedSkus, setSelectedSkus] = useState<Sku[]>([])
+  const [skuSearchTerm, setSkuSearchTerm] = useState('')
+
   const photoViews = [
     { id: '1', title: 'Vista Frontal', description: 'Foto frontal do palete', icon: '📷', required: true },
     { id: '2', title: 'Vista Lateral', description: 'Foto lateral do palete', icon: '📸', required: true },
-    { id: '3', title: 'Vista Superior', description: 'Foto de cima do palete', icon: '🔝', required: true }
+    { id: '3', title: 'Vista Superior', description: 'Foto de cima do palete', icon: '🔝', required: false }
   ]
   
   const [error, setError] = useState<string | null>(null)
+  const [visionResult, setVisionResult] = useState<any>(null)
+  const [showVisionResults, setShowVisionResults] = useState(false)
+  const [acceptedItemCount, setAcceptedItemCount] = useState<number | null>(null)
+  
+  // Vision analysis hook
+  const { analyzeImages, isAnalyzing, error: visionError, clearError } = useVisionAnalysis()
 
   useEffect(() => {
     loadInitialData()
@@ -147,6 +173,13 @@ export default function NewPalletPage() {
       if (locationsRes.ok) {
         const locationsData = await locationsRes.json()
         setLocations(locationsData.data || locationsData || [])
+      }
+
+      // Load SKUs
+      const skusRes = await fetch('/api/skus?status=active')
+      if (skusRes.ok) {
+        const skusData = await skusRes.json()
+        setSkus(skusData.data || skusData || [])
       }
     } catch (err) {
       console.error('Error loading initial data:', err)
@@ -225,28 +258,136 @@ export default function NewPalletPage() {
       case 2:
         return formData.qrTagId !== ''
       case 3:
-        return photos.filter(p => p.file !== null).length >= 3
+        const requiredPhotos = photos.filter((p, index) => photoViews[index]?.required && p.file !== null).length
+        return requiredPhotos >= 2 // At least front and side photos
       case 4:
-        return true // Optional step
+        return selectedSkus.length > 0 // At least one SKU selected
+      case 5:
+        return true // Vision analysis step
       default:
         return false
     }
   }
 
-  const handleSubmit = async () => {
+  const runVisionAnalysis = async () => {
+    try {
+      setError(null)
+      clearError()
+      
+      // Prepare images for analysis
+      const images: any = {}
+      
+      photos.forEach((photo, index) => {
+        if (photo.file) {
+          const viewType = photoViews[index]
+          if (viewType.id === '1') images.front_image = photo.file
+          if (viewType.id === '2') images.side_image = photo.file  
+          if (viewType.id === '3') images.top_image = photo.file
+        }
+      })
+
+      // Prepare metadata from form data and selected SKUs
+      const selectedContract = contracts.find(c => c.id === formData.contractId)
+      const skuInfo = selectedSkus.map(sku => ({
+        code: sku.code,
+        name: sku.name,
+        description: sku.description,
+        unit: sku.unit,
+        weight: sku.weight,
+        dimensions: sku.dimensions
+      }))
+      
+      const metadata = {
+        contract_name: selectedContract?.name || 'Contrato não identificado',
+        skus: skuInfo,
+        item_types_count: selectedSkus.length
+      }
+
+      console.log('Running vision analysis with images:', Object.keys(images))
+      
+      const result = await analyzeImages(images, metadata)
+      setVisionResult(result)
+      setShowVisionResults(true)
+      
+    } catch (err) {
+      console.error('Vision analysis error:', err)
+      setError(err instanceof Error ? err.message : 'Erro na análise de visão')
+    }
+  }
+
+  const handleAcceptVisionResult = (itemCount: number) => {
+    setAcceptedItemCount(itemCount)
+    setShowVisionResults(false)
+    // Proceed to submit the pallet with the accepted count
+    handleSubmit(itemCount)
+  }
+
+  const handleRejectVisionResult = () => {
+    setShowVisionResults(false)
+    setVisionResult(null)
+    // Allow manual entry - could show a form for manual count
+    handleSubmit(null)
+  }
+
+  const handleSubmit = async (visionItemCount?: number | null) => {
     try {
       setLoading(true)
       setError(null)
+
+      // Upload photos first and get their URLs
+      const uploadedPhotos = []
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i]
+        if (photo.file) {
+          try {
+            // Create a simple file path for now (in production, upload to storage)
+            const fileName = `pallet_${Date.now()}_${i + 1}.jpg`
+            const filePath = `/uploads/pallets/${fileName}`
+            
+            // For now, we'll use a base64 data URL as file_path
+            // In production, you'd upload to Supabase Storage or similar
+            const reader = new FileReader()
+            const fileDataUrl = await new Promise<string>((resolve) => {
+              reader.onload = (e) => resolve(e.target?.result as string)
+              reader.readAsDataURL(photo.file!)
+            })
+            
+            const photoType = i === 0 ? 'frontal' : i === 1 ? 'lateral' : 'superior'
+            
+            uploadedPhotos.push({
+              photo_type: photoType,
+              stage: 'origem',
+              file_path: fileDataUrl // Using data URL for now
+            })
+          } catch (error) {
+            console.error('Error processing photo:', error)
+          }
+        }
+      }
 
       // Prepare data for submission - ensure all values are strings or null
       const submitData = {
         contract_id: String(formData.contractId),
         qr_tag_id: String(formData.qrTagId),
         origin_location_id: formData.originLocationId || 'LOC-001',
-        // observations: formData.observations || '', // Temporarily removed until DB is updated
-        // manifest_id: formData.manifestId ? String(formData.manifestId) : null, // Field doesn't exist in DB table
         status: 'ativo',
-        created_by: 'user-001'
+        created_by: 'user-001',
+        // Add selected SKUs information
+        selected_skus: selectedSkus.map(sku => ({
+          sku_id: sku.id,
+          expected_quantity: 1
+        })),
+        // Add photos if any were captured
+        photos: uploadedPhotos,
+        // Add vision metadata if analysis was run
+        vision_metadata: visionResult ? {
+          item_count: visionItemCount || visionResult.itemCount,
+          confidence: visionResult.confidence,
+          rationale: visionResult.rationale,
+          suggestions: visionResult.suggestions,
+          item_count_by_layer: visionResult.itemCountByLayer,
+          debug: visionResult.debug
+        } : null
       }
 
       console.log('Submitting pallet data:', submitData)
@@ -270,7 +411,7 @@ export default function NewPalletPage() {
       const result = await response.json()
       console.log('Success result:', result)
       
-      alert('Palete criado com sucesso!')
+      alert(`Palete criado com sucesso!${visionItemCount ? ` Contagem estimada: ${visionItemCount} itens` : ''}`)
       router.push('/pallets')
       
     } catch (err) {
@@ -286,7 +427,7 @@ export default function NewPalletPage() {
       {/* Mobile: Vertical layout */}
       <div className="block sm:hidden">
         <div className="flex items-center justify-center mb-4">
-          <span className="text-sm text-slate-400">Etapa {step} de 4</span>
+          <span className="text-sm text-slate-400">Etapa {step} de 5</span>
         </div>
         <div className="flex items-center justify-center">
           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
@@ -294,14 +435,14 @@ export default function NewPalletPage() {
               ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25' 
               : 'bg-slate-700/50 text-slate-400 border border-slate-600/50'
           }`}>
-            {[FileText, QrCode, Camera, Package][step - 1] && 
-              React.createElement([FileText, QrCode, Camera, Package][step - 1], { className: "h-6 w-6" })
+            {[FileText, QrCode, Camera, Package, Brain][step - 1] && 
+              React.createElement([FileText, QrCode, Camera, Package, Brain][step - 1], { className: "h-6 w-6" })
             }
           </div>
         </div>
         <div className="text-center mt-3">
           <span className="text-white font-medium">
-            {['Contrato', 'Tag QR', 'Fotos', 'Manifesto'][step - 1]}
+            {['Contrato', 'Tag QR', 'Fotos', 'Produtos', 'Análise IA'][step - 1]}
           </span>
         </div>
       </div>
@@ -312,7 +453,8 @@ export default function NewPalletPage() {
           { num: 1, title: 'Contrato', icon: FileText },
           { num: 2, title: 'Tag QR', icon: QrCode },
           { num: 3, title: 'Fotos', icon: Camera },
-          { num: 4, title: 'Manifesto', icon: Package }
+          { num: 4, title: 'Produtos', icon: Package },
+          { num: 5, title: 'Análise IA', icon: Brain }
         ].map(({ num, title, icon: Icon }) => (
           <div key={num} className="flex items-center">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
@@ -325,7 +467,7 @@ export default function NewPalletPage() {
             <span className={`ml-3 font-medium ${step >= num ? 'text-white' : 'text-slate-400'}`}>
               {title}
             </span>
-            {num < 4 && (
+            {num < 5 && (
               <div className={`w-16 h-0.5 mx-4 ${step > num ? 'bg-blue-400' : 'bg-slate-600'}`} />
             )}
           </div>
@@ -700,82 +842,217 @@ export default function NewPalletPage() {
           </div>
         )}
 
-        {/* Step 4: Manifest (Optional) */}
+        {/* Step 4: SKU Selection */}
         {step === 4 && (
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Vincular a Manifesto (Opcional)</h2>
-            <p className="text-slate-400 text-sm mb-6">
-              Você pode vincular este palete a um manifesto existente ou deixar para fazer isso depois
-            </p>
+            <div className="flex items-center gap-3 mb-4">
+              <Package className="h-6 w-6 text-green-400" />
+              <h2 className="text-lg sm:text-xl font-bold text-white">Produtos do Pallet</h2>
+            </div>
             
-            <div className="space-y-6">
-              {/* Option 1: No manifest */}
-              <div className="border border-slate-600/50 rounded-lg p-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="manifestOption"
-                    checked={!formData.manifestId}
-                    onChange={() => setFormData(prev => ({ ...prev, manifestId: '' }))}
-                    className="mr-3"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Não vincular a nenhum manifesto agora</span>
-                    <p className="text-xs text-slate-400 mt-1">O palete ficará com status &quot;ativo&quot; e poderá ser vinculado posteriormente</p>
-                  </div>
-                </label>
-              </div>
+            <p className="text-slate-400 text-sm mb-6">
+              Selecione os tipos de produtos (SKUs) que estão neste pallet. A IA irá identificar e contar automaticamente a quantidade de cada produto nas imagens.
+            </p>
 
-              {/* Option 2: Existing manifest */}
-              <div className="border border-slate-600/50 rounded-lg p-4">
-                <label className="flex items-center mb-3">
-                  <input
-                    type="radio"
-                    name="manifestOption"
-                    checked={formData.manifestId !== ''}
-                    onChange={() => {
-                      if (manifests.length > 0) {
-                        setFormData(prev => ({ ...prev, manifestId: manifests[0].id }))
-                      }
-                    }}
-                    className="mr-3"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Vincular a manifesto existente</span>
-                    <p className="text-xs text-slate-400 mt-1">Adicione este palete a um manifesto já criado</p>
-                  </div>
-                </label>
-                
-                {formData.manifestId !== '' && (
-                  <div className="ml-6">
-                    <select
-                      value={formData.manifestId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, manifestId: e.target.value }))}
-                      className="w-full px-3 py-3 sm:py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-base sm:text-sm"
-                    >
-                      <option value="">Selecione um manifesto</option>
-                      {manifests.map(manifest => (
-                        <option key={manifest.id} value={manifest.id}>
-                          {manifest.name} - {manifest.status}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {manifests.length === 0 && (
-                      <p className="text-xs text-yellow-400 mt-2">
-                        ⚠️ Nenhum manifesto disponível. Crie um manifesto primeiro na seção &quot;Manifestos&quot;.
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {manifests.length === 0 && (
-                  <p className="text-xs text-slate-500 ml-6">
-                    Nenhum manifesto disponível no momento
-                  </p>
-                )}
+            {/* SKU Search */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Buscar Produto
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={skuSearchTerm}
+                  onChange={(e) => setSkuSearchTerm(e.target.value)}
+                  placeholder="Digite o código ou nome do produto..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
               </div>
             </div>
+
+            {/* Available SKUs */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Produtos Disponíveis</h3>
+              <div className="max-h-48 overflow-y-auto space-y-2">
+                {skus
+                  .filter(sku => 
+                    skuSearchTerm === '' || 
+                    sku.code.toLowerCase().includes(skuSearchTerm.toLowerCase()) ||
+                    sku.name.toLowerCase().includes(skuSearchTerm.toLowerCase())
+                  )
+                  .slice(0, 10)
+                  .map(sku => (
+                    <div
+                      key={sku.id}
+                      onClick={() => {
+                        if (!selectedSkus.find(s => s.id === sku.id)) {
+                          setSelectedSkus([...selectedSkus, sku])
+                          setSkuSearchTerm('')
+                        }
+                      }}
+                      className="p-3 bg-slate-700/30 border border-slate-600/30 rounded-lg hover:bg-slate-600/30 cursor-pointer transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-white font-medium">{sku.code} - {sku.name}</p>
+                          <p className="text-slate-400 text-sm">{sku.description}</p>
+                          <div className="flex gap-4 text-xs text-slate-500 mt-1">
+                            <span>Unidade: {sku.unit}</span>
+                            {sku.weight && <span>Peso: {sku.weight}kg</span>}
+                            {sku.dimensions && <span>Dimensões: {sku.dimensions}</span>}
+                          </div>
+                        </div>
+                        <Plus className="h-4 w-4 text-green-400" />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Selected SKUs */}
+            <div>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">
+                Produtos Selecionados ({selectedSkus.length})
+              </h3>
+              
+              {selectedSkus.length === 0 ? (
+                <div className="p-4 bg-slate-700/20 border border-slate-600/20 rounded-lg text-center">
+                  <Package className="h-8 w-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm">Nenhum produto selecionado ainda</p>
+                  <p className="text-slate-500 text-xs mt-1">Use a busca acima para adicionar produtos</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedSkus.map((sku, index) => (
+                    <div key={sku.id} className="p-4 bg-slate-700/30 border border-slate-600/30 rounded-lg">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{sku.code} - {sku.name}</p>
+                          <p className="text-slate-400 text-sm">{sku.description}</p>
+                          <div className="flex gap-4 text-xs text-slate-500 mt-1">
+                            <span>Unidade: {sku.unit}</span>
+                            {sku.weight && <span>Peso: {sku.weight}kg</span>}
+                            {sku.dimensions && <span>Dimensões: {sku.dimensions}</span>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSelectedSkus(selectedSkus.filter((_, i) => i !== index))}
+                          className="text-red-400 hover:text-red-300 transition-colors ml-3"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <p className="text-blue-300 text-sm font-medium">
+                      {selectedSkus.length} tipo{selectedSkus.length !== 1 ? 's' : ''} de produto{selectedSkus.length !== 1 ? 's' : ''} selecionado{selectedSkus.length !== 1 ? 's' : ''}
+                    </p>
+                    <p className="text-blue-200 text-xs mt-1">
+                      A IA irá contar automaticamente a quantidade de cada produto
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Vision Analysis */}
+        {step === 5 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Brain className="h-6 w-6 text-purple-400" />
+              <h2 className="text-lg sm:text-xl font-bold text-white">Análise de Visão Computacional</h2>
+            </div>
+            
+            <p className="text-slate-400 text-sm mb-6">
+              Vamos analisar as fotos do pallet para estimar automaticamente a quantidade de itens usando inteligência artificial.
+            </p>
+
+            {!showVisionResults && !visionResult && (
+              <div className="space-y-4">
+                <div className="bg-slate-700/50 rounded-lg p-4">
+                  <h3 className="text-white font-medium mb-2">Imagens Disponíveis:</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {photos.map((photo, index) => {
+                      const viewType = photoViews[index];
+                      return (
+                        <div key={photo.id} className="text-center">
+                          <div className={`w-full h-24 rounded-lg flex items-center justify-center ${
+                            photo.file ? 'bg-green-500/20 border-green-500/50' : 'bg-slate-600/50 border-slate-500/50'
+                          } border`}>
+                            {photo.file ? (
+                              <CheckCircle className="h-6 w-6 text-green-400" />
+                            ) : (
+                              <X className="h-6 w-6 text-slate-400" />
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">{viewType.title}</p>
+                          <p className="text-xs text-slate-500">{photo.file ? 'Disponível' : 'Não fornecida'}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  onClick={runVisionAnalysis}
+                  disabled={isAnalyzing || photos.filter(p => p.file).length === 0}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-400 text-white font-semibold rounded-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Analisando Imagens...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-5 w-5" />
+                      Iniciar Análise de Visão
+                    </>
+                  )}
+                </button>
+
+                {(visionError || error) && (
+                  <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+                    <p className="text-red-400 text-sm">{visionError || error}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showVisionResults && visionResult && (
+              <VisionAnalysisResults
+                result={visionResult}
+                onAccept={handleAcceptVisionResult}
+                onReject={handleRejectVisionResult}
+                onRetry={() => {
+                  setShowVisionResults(false)
+                  setVisionResult(null)
+                  runVisionAnalysis()
+                }}
+              />
+            )}
+
+            {!showVisionResults && !isAnalyzing && (
+              <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-300">
+                    <p className="font-medium mb-1">Como funciona:</p>
+                    <ul className="text-xs space-y-1 text-blue-200">
+                      <li>• A IA analisa as fotos para identificar e contar os itens</li>
+                      <li>• Quanto mais fotos, maior a precisão da contagem</li>
+                      <li>• Você pode aceitar o resultado ou inserir manualmente</li>
+                      <li>• O sistema aprende com cada análise para melhorar</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -791,7 +1068,7 @@ export default function NewPalletPage() {
 
           {/* Always show the next/submit button */}
           <div className="w-full sm:w-auto">
-            {step < 4 ? (
+            {step < 5 ? (
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceedToNext()}
@@ -800,14 +1077,17 @@ export default function NewPalletPage() {
                 Próximo
               </button>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-gradient-to-r from-green-500 to-emerald-400 text-white font-semibold rounded-lg shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-base sm:text-sm min-h-[48px]"
-              >
-                <Save className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
-                {loading ? 'Criando...' : 'Criar Palete'}
-              </button>
+              // Step 5: Only show "Create Pallet" button if vision analysis was completed or user chose manual entry
+              (acceptedItemCount !== null || visionResult === null) && (
+                <button
+                  onClick={() => handleSubmit(acceptedItemCount)}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-gradient-to-r from-green-500 to-emerald-400 text-white font-semibold rounded-lg shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-base sm:text-sm min-h-[48px]"
+                >
+                  <Save className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
+                  {loading ? 'Criando...' : 'Criar Palete'}
+                </button>
+              )
             )}
           </div>
         </div>
