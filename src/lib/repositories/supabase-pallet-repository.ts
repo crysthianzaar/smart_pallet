@@ -565,6 +565,22 @@ export class SupabasePalletRepository extends SupabaseBaseRepository<Pallet, Pal
     return result
   }
 
+  async updateStatus(palletId: string, status: string): Promise<boolean> {
+    const { error } = await this.client
+      .from('pallets')
+      .update({
+        status: status,
+        updated_at: this.getCurrentTimestamp()
+      })
+      .eq('id', palletId)
+
+    if (error) {
+      throw new Error(`Error updating pallet status: ${error.message}`)
+    }
+
+    return true
+  }
+
   async getStatistics(): Promise<{
     total: number;
     byStatus: Record<string, number>;

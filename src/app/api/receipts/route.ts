@@ -5,6 +5,8 @@ import { ReceiptCreateSchema } from '../../../lib/models';
 
 const receiptRepository = RepositoryFactory.getReceiptRepository();
 const manifestRepository = RepositoryFactory.getManifestRepository();
+const palletRepository = RepositoryFactory.getPalletRepository();
+const qrTagRepository = RepositoryFactory.getQrTagRepository();
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +38,44 @@ export async function POST(request: NextRequest) {
       console.error('Error updating manifest status:', manifestError);
       // Don't fail the receipt creation if manifest update fails
       // The receipt is still valid even if manifest status update fails
+    }
+
+    // Finalize pallets and release QR tags automatically
+    try {
+      console.log('Processing pallets for receipt finalization...');
+      
+      // Get manifest details with pallets
+      const manifestDetails = await manifestRepository.getWithDetails(validatedData.manifest_id);
+      
+      if (manifestDetails && manifestDetails.pallets && manifestDetails.pallets.length > 0) {
+        console.log(`Processing ${manifestDetails.pallets.length} pallets for receipt finalization`);
+        
+        // Process each pallet individually to avoid failing all if one fails
+        for (const pallet of manifestDetails.pallets) {
+          try {
+            // 1. Finalize pallet status
+            await palletRepository.updateStatus(pallet.id, 'finalizado');
+            console.log(`Pallet ${pallet.id} marked as finalized`);
+            
+            // 2. Release QR tag if it exists
+            if (pallet.qr_tag_id) {
+              await qrTagRepository.unlinkFromPallet(pallet.qr_tag_id);
+              console.log(`QR tag ${pallet.qr_tag_id} released from pallet ${pallet.id}`);
+            }
+          } catch (palletError) {
+            console.error(`Error processing pallet ${pallet.id}:`, palletError);
+            // Continue processing other pallets even if one fails
+          }
+        }
+        
+        console.log('All pallets processed for receipt finalization');
+      } else {
+        console.log('No pallets found in manifest for finalization');
+      }
+    } catch (palletProcessingError) {
+      console.error('Error during pallet finalization process:', palletProcessingError);
+      // Don't fail the receipt creation if pallet processing fails
+      // The receipt is still valid even if pallet finalization fails
     }
     
     return createApiResponse(receipt, 201);
