@@ -335,32 +335,43 @@ export default function NewPalletPage() {
       setError(null)
 
       // Upload photos first and get their URLs
-      const uploadedPhotos = []
+      const uploadedPhotos: Array<{
+        photo_type: string;
+        stage: string;
+        file_path: string;
+      }> = []
+      
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i]
         if (photo.file) {
           try {
-            // Create a simple file path for now (in production, upload to storage)
-            const fileName = `pallet_${Date.now()}_${i + 1}.jpg`
-            const filePath = `/uploads/pallets/${fileName}`
+            const photoType = i === 0 ? 'frontal' : i === 1 ? 'lateral' : 'superior'
+            const fileName = `pallets/${Date.now()}_${i + 1}_${photoType}_origem.jpg`
             
-            // For now, we'll use a base64 data URL as file_path
-            // In production, you'd upload to Supabase Storage or similar
-            const reader = new FileReader()
-            const fileDataUrl = await new Promise<string>((resolve) => {
-              reader.onload = (e) => resolve(e.target?.result as string)
-              reader.readAsDataURL(photo.file!)
+            // Upload to Supabase Storage
+            const formData = new FormData()
+            formData.append('file', photo.file!)
+            formData.append('fileName', fileName)
+            
+            const uploadResponse = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData
             })
             
-            const photoType = i === 0 ? 'frontal' : i === 1 ? 'lateral' : 'superior'
+            if (!uploadResponse.ok) {
+              throw new Error('Failed to upload image')
+            }
+            
+            const { publicUrl } = await uploadResponse.json()
             
             uploadedPhotos.push({
               photo_type: photoType,
               stage: 'origem',
-              file_path: fileDataUrl // Using data URL for now
+              file_path: publicUrl
             })
           } catch (error) {
             console.error('Error processing photo:', error)
+            throw new Error(`Erro ao fazer upload da foto ${i + 1}`)
           }
         }
       }

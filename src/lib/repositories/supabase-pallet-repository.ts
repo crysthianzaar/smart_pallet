@@ -118,7 +118,7 @@ export class SupabasePalletRepository extends SupabaseBaseRepository<Pallet, Pal
         }
 
         processedPhotos.push({
-          id: this.generateId(),
+          id: crypto.randomUUID(), // Use UUID for pallet_photos table
           ...photo,
           file_path: finalFilePath, // Use Supabase URL instead of base64
           created_at: timestamp
