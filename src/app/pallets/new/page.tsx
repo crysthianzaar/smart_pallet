@@ -1,4 +1,3 @@
-
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -6,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '../../../components/layout/AppLayout'
 import { useVisionAnalysis } from '../../../hooks/useVisionAnalysis'
 import { VisionAnalysisResults } from '../../../components/VisionAnalysisResults'
+import { MobilePhotoCapture } from '../../../components/MobilePhotoCapture'
 import { 
   Camera, 
   QrCode, 
@@ -767,73 +767,12 @@ export default function NewPalletPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {photos.map((photo, index) => {
-                const viewInfo = photoViews[index]
-                return (
-                  <div key={photo.id} className="border-2 border-dashed border-slate-600/50 rounded-lg p-4 sm:p-6 text-center">
-                    {/* Header com informações da vista */}
-                    <div className="mb-4">
-                      <div className="text-2xl mb-2">{viewInfo.icon}</div>
-                      <h3 className="text-sm font-semibold text-white">{viewInfo.title}</h3>
-                      <p className="text-xs text-slate-400">{viewInfo.description}</p>
-                      {viewInfo.required && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
-                          Obrigatória
-                        </span>
-                      )}
-                    </div>
-
-                    {photo.preview ? (
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <img 
-                            src={photo.preview} 
-                            alt={viewInfo.title}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => removePhoto(photo.id)}
-                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                        <p className="text-sm text-green-400 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          {viewInfo.title} capturada
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <Camera className="h-12 w-12 text-slate-400 mx-auto" />
-                        <p className="text-sm text-slate-500 mb-3">
-                          Posicione o palete para capturar a {viewInfo.title.toLowerCase()}
-                        </p>
-                        <label className="inline-block">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) {
-                                handlePhotoCapture(photo.id, file)
-                              }
-                            }}
-                            className="hidden"
-                          />
-                          <span className="px-4 py-3 sm:px-3 sm:py-2 bg-slate-700/50 text-slate-300 border border-slate-600/50 rounded-lg hover:bg-slate-600/50 transition-all duration-200 cursor-pointer inline-flex items-center text-base sm:text-sm font-medium">
-                            <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
-                            Capturar {viewInfo.title}
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <MobilePhotoCapture
+              photos={photos}
+              photoViews={photoViews}
+              onPhotoCapture={handlePhotoCapture}
+              onRemovePhoto={removePhoto}
+            />
             
             <div className="text-center mt-6">
               <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
