@@ -6,6 +6,7 @@ import { AppLayout } from '../../../components/layout/AppLayout'
 import { useVisionAnalysis } from '../../../hooks/useVisionAnalysis'
 import { VisionAnalysisResults } from '../../../components/VisionAnalysisResults'
 import { MobilePhotoCapture } from '../../../components/MobilePhotoCapture'
+import { QRCodeScanner } from '../../../components/QRCodeScanner'
 import { 
   Camera, 
   QrCode, 
@@ -113,6 +114,7 @@ export default function NewPalletPage() {
   const [visionResult, setVisionResult] = useState<any>(null)
   const [showVisionResults, setShowVisionResults] = useState(false)
   const [acceptedItemCount, setAcceptedItemCount] = useState<number | null>(null)
+  const [showQRScanner, setShowQRScanner] = useState(false)
   
   // Vision analysis hook
   const { analyzeImages, isAnalyzing, error: visionError, clearError } = useVisionAnalysis()
@@ -249,6 +251,44 @@ export default function NewPalletPage() {
         ? { id: photoId, file: null, preview: '', uploaded: false }
         : photo
     ))
+  }
+
+  const handleQRCodeDetected = async (qrCode: string) => {
+    try {
+      setShowQRScanner(false)
+      
+      // Check if this QR code exists in available tags
+      const existingTag = availableTags.find(tag => tag.qr_code === qrCode)
+      
+      if (existingTag) {
+        // Use existing tag
+        setFormData(prev => ({ ...prev, qrTagId: existingTag.id, useNewTag: false }))
+        setTagSearchTerm(existingTag.qr_code)
+      } else {
+        // Create new tag with scanned QR code
+        const response = await fetch('/api/qr-tags', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            qr_code: qrCode,
+            status: 'vinculado',
+            description: `Tag escaneada - ${new Date().toLocaleDateString('pt-BR')}`
+          }),
+        })
+        
+        if (!response.ok) {
+          throw new Error('Erro ao criar nova tag')
+        }
+        
+        const result = await response.json()
+        setFormData(prev => ({ ...prev, qrTagId: result.data.id, useNewTag: true }))
+        setTagSearchTerm(qrCode)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao processar QR code')
+    }
   }
 
   const canProceedToNext = () => {
@@ -614,116 +654,144 @@ export default function NewPalletPage() {
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Escolher Tag QR</h2>
             
-            <div className="space-y-6">
-              {/* Option 1: Select existing free tag */}
+            <div className="space-y-4">
+              {/* QR Scanner Button - Mobile First */}
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-lg p-4">
+                <button
+                  onClick={() => setShowQRScanner(true)}
+                  className="w-full flex items-center justify-center gap-3 text-white font-semibold py-3"
+                >
+                  <Camera className="h-6 w-6" />
+                  <span className="text-lg">Escanear QR Code do Pallet</span>
+                </button>
+                <p className="text-blue-100 text-sm text-center mt-2">
+                  Tire uma foto ou selecione da galeria
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-slate-600"></div>
+                <span className="text-slate-400 text-sm">ou</span>
+                <div className="flex-1 h-px bg-slate-600"></div>
+              </div>
+
+              {/* Manual Selection */}
               <div className="border border-slate-600/50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-white mb-3">Usar Tag Existente</h3>
+                <h3 className="text-base font-medium text-white mb-3 flex items-center">
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar Tag Existente
+                </h3>
                 
                 {availableTags.length > 0 ? (
-                  <div className="relative">
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Buscar e selecionar tag QR
-                    </label>
-                    
-                    {/* Searchable Select */}
-                    <div className="relative tag-dropdown-container">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input
-                          type="text"
-                          value={tagSearchTerm}
-                          onChange={(e) => {
-                            setTagSearchTerm(e.target.value)
-                            setShowTagDropdown(true)
-                          }}
-                          onFocus={() => setShowTagDropdown(true)}
-                          placeholder="Digite para buscar uma tag QR..."
-                          className="w-full pl-10 pr-10 py-3 sm:py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-base sm:text-sm"
-                        />
-                        <ChevronDown 
-                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 transition-transform duration-200 ${
-                            showTagDropdown ? 'rotate-180' : ''
-                          }`} 
-                        />
+                  <div className="space-y-3 tag-dropdown-container">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={tagSearchTerm}
+                        onChange={(e) => {
+                          setTagSearchTerm(e.target.value)
+                          setShowTagDropdown(true)
+                        }}
+                        onFocus={() => setShowTagDropdown(true)}
+                        placeholder="Digite o código da tag QR..."
+                        className="w-full pl-10 pr-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      />
+                    </div>
+
+                    {/* Show available tags count when not searching */}
+                    {!showTagDropdown && tagSearchTerm.length === 0 && (
+                      <div className="text-center py-2">
+                        <p className="text-slate-400 text-sm">
+                          {availableTags.length} tag(s) disponível(is) - clique no campo para ver
+                        </p>
                       </div>
-                      
-                      {/* Dropdown */}
-                      {showTagDropdown && (
-                        <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600/50 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          {availableTags
-                            .filter(tag => 
-                              tag.qr_code.toLowerCase().includes(tagSearchTerm.toLowerCase()) ||
-                              (tag.description && tag.description.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                            )
-                            .map(tag => (
-                              <div
-                                key={tag.id}
-                                onClick={() => {
-                                  setFormData(prev => ({ ...prev, qrTagId: tag.id, useNewTag: false }))
-                                  setTagSearchTerm(tag.qr_code)
-                                  setShowTagDropdown(false)
-                                }}
-                                className={`p-3 cursor-pointer transition-all duration-200 hover:bg-slate-700/50 border-b border-slate-700/30 last:border-b-0 ${
-                                  formData.qrTagId === tag.id && !formData.useNewTag
-                                    ? 'bg-blue-500/10 border-l-4 border-l-blue-500'
-                                    : ''
-                                }`}
-                              >
-                                <div className="flex items-center">
-                                  <QrCode className="h-4 w-4 text-blue-400 mr-2 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    <span className="text-white font-mono text-sm">{tag.qr_code}</span>
+                    )}
+
+                    {/* Tags List - Mobile Optimized */}
+                    {(showTagDropdown || tagSearchTerm.length > 0) && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {availableTags
+                          .filter(tag => 
+                            tagSearchTerm.length === 0 || // Show all if no search term
+                            tag.qr_code.toLowerCase().includes(tagSearchTerm.toLowerCase()) ||
+                            (tag.description && tag.description.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                          )
+                          .slice(0, 5) // Limit to 5 items for mobile
+                          .map(tag => (
+                            <div
+                              key={tag.id}
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, qrTagId: tag.id, useNewTag: false }))
+                                setTagSearchTerm(tag.qr_code)
+                                setShowTagDropdown(false)
+                              }}
+                              className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                                formData.qrTagId === tag.id && !formData.useNewTag
+                                  ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                                  : 'bg-slate-700/30 border-slate-600/50 hover:bg-slate-600/30 text-white'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <QrCode className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                                  <div>
+                                    <span className="font-mono text-sm font-medium">{tag.qr_code}</span>
                                     {tag.description && (
                                       <p className="text-xs text-slate-400 mt-1">{tag.description}</p>
                                     )}
                                   </div>
-                                  {formData.qrTagId === tag.id && !formData.useNewTag && (
-                                    <CheckCircle className="h-4 w-4 text-blue-400 ml-2" />
-                                  )}
                                 </div>
+                                {formData.qrTagId === tag.id && !formData.useNewTag && (
+                                  <CheckCircle className="h-4 w-4 text-blue-400" />
+                                )}
                               </div>
-                            ))
-                          }
-                          
-                          {availableTags.filter(tag => 
-                            tag.qr_code.toLowerCase().includes(tagSearchTerm.toLowerCase()) ||
-                            (tag.description && tag.description.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                          ).length === 0 && (
-                            <div className="p-3 text-center text-slate-400">
-                              Nenhuma tag encontrada para &quot;{tagSearchTerm}&quot;
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Selected tag display */}
-                    {formData.qrTagId && !formData.useNewTag && (
-                      <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                        <div className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-blue-400 mr-2" />
-                          <span className="text-blue-400 text-sm font-medium">Tag selecionada:</span>
-                          <span className="text-white font-mono text-sm ml-2">
-                            {availableTags.find(tag => tag.id === formData.qrTagId)?.qr_code}
-                          </span>
-                        </div>
+                          ))
+                        }
+                        
+                        {availableTags.filter(tag => 
+                          tagSearchTerm.length === 0 || // Show all if no search term
+                          tag.qr_code.toLowerCase().includes(tagSearchTerm.toLowerCase()) ||
+                          (tag.description && tag.description.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                        ).length === 0 && tagSearchTerm.length > 0 && (
+                          <div className="p-4 text-center text-slate-400 bg-slate-700/20 rounded-lg">
+                            <QrCode className="h-8 w-8 mx-auto mb-2 text-slate-500" />
+                            <p className="text-sm">Nenhuma tag encontrada</p>
+                            <p className="text-xs mt-1">Tente escanear o QR code</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    
-                    <p className="text-xs text-slate-400 mt-2">
-                      {availableTags.length} tag(s) livre(s) disponível(is)
-                    </p>
-                    
-                    {formData.qrTagId && (
-                      <p className="text-xs text-blue-400 mt-1">
-                        ✅ Tag QR selecionada - Pronto para próxima etapa
-                      </p>
                     )}
                   </div>
                 ) : (
-                  <p className="text-slate-400">Nenhuma tag livre disponível</p>
+                  <div className="text-center py-6">
+                    <QrCode className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Nenhuma tag livre disponível</p>
+                    <p className="text-slate-500 text-xs mt-1">Use o scanner para criar uma nova</p>
+                  </div>
                 )}
               </div>
+
+              {/* Selected Tag Display */}
+              {formData.qrTagId && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-green-400 font-medium text-sm">Tag QR Selecionada</p>
+                      <p className="text-white font-mono text-lg">
+                        {formData.useNewTag ? tagSearchTerm : availableTags.find(tag => tag.id === formData.qrTagId)?.qr_code}
+                      </p>
+                      <p className="text-green-300 text-xs mt-1">
+                        {formData.useNewTag ? 'Nova tag criada' : 'Tag existente'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1042,6 +1110,14 @@ export default function NewPalletPage() {
           </div>
         </div>
       </div>
+
+      {/* QR Code Scanner Modal */}
+      {showQRScanner && (
+        <QRCodeScanner
+          onQRCodeDetected={handleQRCodeDetected}
+          onCancel={() => setShowQRScanner(false)}
+        />
+      )}
     </AppLayout>
   )
 }
